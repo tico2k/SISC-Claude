@@ -13,7 +13,7 @@ const SystemLogs: React.FC = () => {
             try {
                 const data = await systemService.getAuditLogs();
                 setLogs(data);
-            } catch (error) {
+            } catch {
                 console.error("Failed to fetch logs");
             } finally {
                 setLoading(false);
@@ -49,7 +49,7 @@ const SystemLogs: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-200">
-                                {logs.map((log: any, index) => (
+                                {logs.map((log, index) => (
                                     <tr key={index} className="hover:bg-slate-50">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-slate-900">

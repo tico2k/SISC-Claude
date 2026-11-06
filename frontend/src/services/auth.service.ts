@@ -1,5 +1,5 @@
 import { client } from './client';
-import { LoginCredentials, RegisterData, AuthResponse, User, EntraLoginRequest, AuthConfig } from '../types';
+import { LoginCredentials, RegisterData, AuthResponse, User, EntraLoginRequest, AuthConfig, LoginHistoryResponse } from '../types';
 
 export const authService = {
     login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
@@ -42,8 +42,8 @@ export const authService = {
         await client.post('/loginhistory', null, { params: { status } });
     },
 
-    getLoginHistory: async (skip = 0, limit = 100): Promise<any[]> => { // Type as LoginHistoryResponse if available
-        const response = await client.get('/loginhistory', { params: { skip, limit } });
+    getLoginHistory: async (skip = 0, limit = 100): Promise<LoginHistoryResponse[]> => {
+        const response = await client.get<LoginHistoryResponse[]>('/loginhistory', { params: { skip, limit } });
         return response.data;
     }
 };

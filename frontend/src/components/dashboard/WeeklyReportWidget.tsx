@@ -1,16 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Calendar, ChevronRight, FileText, CheckCircle2, XCircle } from 'lucide-react';
-
-interface WeeklyReport {
-    report_id: number;
-    week_start: string;
-    week_end: string;
-    created: number;
-    approved: number;
-    rejected: number;
-    generated_at: string;
-}
+import { WeeklyReport } from '../../types';
 
 interface WeeklyReportWidgetProps {
     data: WeeklyReport[];

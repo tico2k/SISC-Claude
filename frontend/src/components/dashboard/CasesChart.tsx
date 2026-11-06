@@ -11,10 +11,11 @@ import {
     Legend,
     ResponsiveContainer
 } from 'recharts';
+import { CaseStatsChartPoint, DashboardFilters } from '../../types';
 
 interface CasesChartProps {
-    chartDataRaw: any[];
-    filters: any;
+    chartDataRaw?: CaseStatsChartPoint[];
+    filters: DashboardFilters;
     toggleFilter: (type: string, value: string) => void;
 }
 
@@ -62,10 +63,10 @@ const CasesChart: React.FC<CasesChartProps> = ({ chartDataRaw, filters, toggleFi
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                         data={chartData}
-                        onClick={(data: any) => {
-                            if (data && data.activeTooltipIndex !== undefined) {
-                                const idx = data.activeTooltipIndex;
-                                toggleFilter('date', chartData[idx].fullDate);
+                        onClick={(data) => {
+                            if (data && data.activeTooltipIndex != null) {
+                                const idx = Number(data.activeTooltipIndex);
+                                if (chartData[idx]) toggleFilter('date', chartData[idx].fullDate);
                             }
                         }}
                         margin={{ top: 10, right: 10, left: -25, bottom: 0 }}

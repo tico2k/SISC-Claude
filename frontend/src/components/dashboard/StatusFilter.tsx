@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import { CaseStats, DashboardFilters } from '../../types';
 
 interface StatusFilterProps {
-    stats: any;
-    filters: any;
+    stats?: CaseStats;
+    filters: DashboardFilters;
     toggleFilter: (type: string, value: string) => void;
 }
 

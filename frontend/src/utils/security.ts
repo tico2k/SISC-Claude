@@ -30,7 +30,7 @@ export const sanitizeEmail = (email: string): string => {
     if (!email) return '';
 
     // 기본 sanitization
-    let sanitized = email.trim().toLowerCase();
+    const sanitized = email.trim().toLowerCase();
 
     // 이메일 형식 검증을 위한 정규식
     const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -72,7 +72,7 @@ export const sanitizeFileName = (fileName: string): string => {
     if (!fileName) return '';
 
     // 경로 구분자 제거
-    let sanitized = fileName.replace(/[\/\\]/g, '');
+    let sanitized = fileName.replace(/[/\\]/g, '');
 
     // null 바이트 제거
     sanitized = sanitized.replace(/\0/g, '');

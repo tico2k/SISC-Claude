@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { userService } from '../services/user.service';
-import { User, UserRegisterRequest } from '../types';
+import { User, UserRegisterRequest, UserUploadStats } from '../types';
 import { Users, Plus, Edit2, Trash2, Search, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorBody, getErrorMessage } from '../utils/error';
 
 const UserManagement: React.FC = () => {
     const { t } = useTranslation();
@@ -31,7 +32,7 @@ const UserManagement: React.FC = () => {
     const [uploadFile, setUploadFile] = useState<File | null>(null);
     const [uploadFormat, setUploadFormat] = useState('auto');
     const [uploading, setUploading] = useState(false);
-    const [uploadResult, setUploadResult] = useState<any>(null);
+    const [uploadResult, setUploadResult] = useState<UserUploadStats | null>(null);
 
     const [syncing, setSyncing] = useState(false);
 
@@ -43,7 +44,7 @@ const UserManagement: React.FC = () => {
         try {
             const data = await userService.getUsers();
             setUsers(data);
-        } catch (error) {
+        } catch {
             console.error("Failed to fetch users");
         } finally {
             setLoading(false);
@@ -62,8 +63,8 @@ const UserManagement: React.FC = () => {
                 updated: result.stats.updated
             }));
             fetchUsers();
-        } catch (error: any) {
-            alert(t('system.user.alerts.syncFailed', { message: error.response?.data?.detail || error.message }));
+        } catch (error: unknown) {
+            alert(t('system.user.alerts.syncFailed', { message: getApiErrorBody(error).detail || getErrorMessage(error) }));
         } finally {
             setSyncing(false);
         }
@@ -112,7 +113,7 @@ const UserManagement: React.FC = () => {
         try {
             if (isEditMode && editingId) {
                 // Update
-                const updatePayload: any = { ...formData };
+                const updatePayload: Partial<UserRegisterRequest> = { ...formData };
                 if (!updatePayload.password) {
                     delete updatePayload.password;
                 }
@@ -142,7 +143,7 @@ const UserManagement: React.FC = () => {
         try {
             await userService.deleteUser(userId);
             setUsers(users.filter(u => u.user_id !== userId));
-        } catch (error) {
+        } catch {
             alert(t('system.user.alerts.deleteFailed'));
         }
     };
@@ -183,8 +184,8 @@ const UserManagement: React.FC = () => {
             // So I should use responseStats.stats.
 
             fetchUsers();
-        } catch (error: any) {
-            alert(t('system.user.alerts.uploadFailed', { message: error.response?.data?.detail || error.message }));
+        } catch (error: unknown) {
+            alert(t('system.user.alerts.uploadFailed', { message: getApiErrorBody(error).detail || getErrorMessage(error) }));
         } finally {
             setUploading(false);
         }

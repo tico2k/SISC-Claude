@@ -1,4 +1,5 @@
 import { client } from './client';
+import { JobTriggerPayload } from '../types';
 
 export interface AuditLog {
     log_id: number;
@@ -68,8 +69,8 @@ export const systemService = {
         const response = await client.get<EnvResponse>('/system/env');
         return response.data;
     },
-    updateEnv: async (fileType: 'backend' | 'frontend', key: string, value: string): Promise<any> => {
-        const response = await client.post('/system/env', {
+    updateEnv: async (fileType: 'backend' | 'frontend', key: string, value: string): Promise<{ message: string }> => {
+        const response = await client.post<{ message: string }>('/system/env', {
             file_type: fileType,
             key,
             value
@@ -88,7 +89,7 @@ export const systemService = {
         const response = await client.post<{ message: string }>(`/system/jobs/${jobId}/resume`);
         return response.data;
     },
-    triggerJob: async (jobId: string, payload?: any): Promise<{ message: string }> => {
+    triggerJob: async (jobId: string, payload?: JobTriggerPayload): Promise<{ message: string }> => {
         const response = await client.post<{ message: string }>(`/system/jobs/${jobId}/trigger`, payload || {});
         return response.data;
     },

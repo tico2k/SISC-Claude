@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { siemService } from '../services/siem.service';
+import { siemService, SiemTestResult } from '../services/siem.service';
 import { SiemConfiguration } from '../types';
 import { Shield, Plus, Server, CheckCircle2, XCircle, Loader2, Save, Trash2, Database, AlertCircle } from 'lucide-react';
 
@@ -41,7 +41,7 @@ const SiemSettings: React.FC = () => {
         field_mapping: { ...DEFAULT_MAPPING }
     });
 
-    const [testResult, setTestResult] = useState<{ status: string; message: string; data?: any } | null>(null);
+    const [testResult, setTestResult] = useState<SiemTestResult | null>(null);
     const [testing, setTesting] = useState(false);
     const [saving, setSaving] = useState(false);
     const [isConverting, setIsConverting] = useState(false);
@@ -104,7 +104,7 @@ const SiemSettings: React.FC = () => {
         try {
             const result = await siemService.testConnection(formData);
             setTestResult(result);
-        } catch (error) {
+        } catch {
             setTestResult({ status: 'error', message: t('system.siem.testFailed') });
         } finally {
             setTesting(false);
@@ -121,7 +121,7 @@ const SiemSettings: React.FC = () => {
         const mappingObj = formData.field_mapping || {};
         const newPreview: Record<string, string> = {};
 
-        const extractValue = (data: any, keyPath: string) => {
+        const extractValue = (data: unknown, keyPath: string): unknown => {
             if (!keyPath) return null;
             if ((keyPath.startsWith('"') && keyPath.endsWith('"')) || (keyPath.startsWith("'") && keyPath.endsWith("'"))) {
                 if (keyPath.length >= 2) return keyPath.substring(1, keyPath.length - 1);
@@ -130,7 +130,7 @@ const SiemSettings: React.FC = () => {
             let val = data;
             for (const k of keys) {
                 if (val && typeof val === 'object' && k in val) {
-                    val = val[k];
+                    val = (val as Record<string, unknown>)[k];
                 } else {
                     return null;
                 }
@@ -231,7 +231,7 @@ const SiemSettings: React.FC = () => {
             });
             setTestResult(null);
             setPreviewValues({});
-        } catch (error) {
+        } catch {
             alert(t('common.error'));
         } finally {
             setSaving(false);
@@ -453,11 +453,11 @@ const SiemSettings: React.FC = () => {
                                                                 {testResult.status === 'success' ? <CheckCircle2 className="w-5 h-5 mr-2 flex-shrink-0 text-green-600" /> : <XCircle className="w-5 h-5 mr-2 flex-shrink-0 text-red-600" />}
                                                                 <span className="font-semibold text-sm">{testResult.message}</span>
                                                             </div>
-                                                            {testResult.status === 'success' && (testResult as any).data && (
+                                                            {testResult.status === 'success' && testResult.data && (
                                                                 <div className="relative">
                                                                     <div className="absolute top-0 right-0 bg-slate-800 text-slate-200 text-[10px] px-2 py-1 rounded-bl-lg rounded-tr opacity-80 uppercase tracking-wider font-semibold">{t('system.siem.jsonResponse')}</div>
                                                                     <pre className="text-[11px] font-mono bg-slate-900 text-slate-300 p-3.5 rounded shadow-inner overflow-x-auto max-h-[300px] leading-relaxed custom-scrollbar">
-                                                                        {JSON.stringify((testResult as any).data, null, 2)}
+                                                                        {JSON.stringify(testResult.data, null, 2)}
                                                                     </pre>
                                                                 </div>
                                                             )}
@@ -505,10 +505,10 @@ const SiemSettings: React.FC = () => {
                                                                 <tbody className="divide-y divide-slate-100 bg-white">
                                                                     {MAPPING_COLUMNS.map((col) => {
                                                                         const mappingObj = formData.field_mapping || {};
-                                                                        const isChecked = col.required || mappingObj.hasOwnProperty(col.id);
+                                                                        const isChecked = col.required || Object.prototype.hasOwnProperty.call(mappingObj, col.id);
                                                                         const jsonKey = mappingObj[col.id] || "";
 
-                                                                        let previewVal = previewValues[col.id] || "";
+                                                                        const previewVal = previewValues[col.id] || "";
 
                                                                         return (
                                                                             <tr key={col.id} className="hover:bg-slate-50/80 transition-colors group">
@@ -639,7 +639,7 @@ const SiemSettings: React.FC = () => {
                                                 const res = await siemService.testConnection(config);
                                                 alert(`[${res.status.toUpperCase()}] ${res.message}`);
                                             }
-                                        } catch (e) {
+                                        } catch {
                                             alert(t('system.siem.testFail'));
                                         }
                                     }}

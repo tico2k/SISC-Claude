@@ -4,11 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Activity, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { caseService } from '../../services/case.service';
 import { useAuth } from '../../context/AuthContext';
-import { Case } from '../../types';
+import { Case, DashboardFilters } from '../../types';
 import { useTranslation } from 'react-i18next';
 
 interface CasesTableProps {
-    filters: any;
+    filters: DashboardFilters;
     activeFilterCount: number;
 }
 

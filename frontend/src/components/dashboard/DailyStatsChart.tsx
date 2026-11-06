@@ -11,9 +11,10 @@ import {
     Legend,
     ResponsiveContainer
 } from 'recharts';
+import { DailyStat } from '../../types';
 
 interface DailyStatsChartProps {
-    dailyStatsData: any[];
+    dailyStatsData: DailyStat[];
 }
 
 const DailyStatsChart: React.FC<DailyStatsChartProps> = ({ dailyStatsData }) => {

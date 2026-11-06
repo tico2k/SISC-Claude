@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { PlayCircle, PauseCircle, Zap, RefreshCw, AlertCircle, History, Filter, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { systemService, JobResponse, BackgroundJobLog, JobLogFilter } from '../services/system.service';
+import { getApiErrorBody } from '../utils/error';
+import { JobTriggerPayload } from '../types';
 
 export default function SystemJobs() {
     const { t } = useTranslation();
@@ -33,8 +35,8 @@ export default function SystemJobs() {
             setError(null);
             const data = await systemService.getJobs();
             setJobs(data);
-        } catch (err: any) {
-            setError(err.response?.data?.message || t('system.jobs.fetchFailed'));
+        } catch (err: unknown) {
+            setError(getApiErrorBody(err).message || t('system.jobs.fetchFailed'));
         } finally {
             setLoading(false);
         }
@@ -75,8 +77,8 @@ export default function SystemJobs() {
         try {
             await systemService.pauseJob(jobId);
             fetchJobs();
-        } catch (err: any) {
-            alert(err.response?.data?.message || t('system.jobs.pauseFailed'));
+        } catch (err: unknown) {
+            alert(getApiErrorBody(err).message || t('system.jobs.pauseFailed'));
         }
     };
 
@@ -84,8 +86,8 @@ export default function SystemJobs() {
         try {
             await systemService.resumeJob(jobId);
             fetchJobs();
-        } catch (err: any) {
-            alert(err.response?.data?.message || t('system.jobs.resumeFailed'));
+        } catch (err: unknown) {
+            alert(getApiErrorBody(err).message || t('system.jobs.resumeFailed'));
         }
     };
 
@@ -118,12 +120,12 @@ export default function SystemJobs() {
             alert(res.message);
             setShowCronModal(false);
             fetchJobs();
-        } catch (err: any) {
-            alert(err.response?.data?.message || t('system.jobs.rescheduleFailed'));
+        } catch (err: unknown) {
+            alert(getApiErrorBody(err).message || t('system.jobs.rescheduleFailed'));
         }
     };
 
-    const executeTrigger = async (jobId: string, payload?: any) => {
+    const executeTrigger = async (jobId: string, payload?: JobTriggerPayload) => {
         try {
             const res = await systemService.triggerJob(jobId, payload);
             alert(res.message);
@@ -131,8 +133,8 @@ export default function SystemJobs() {
             fetchLogs(selectedJobId); // 로그 갱신
             fetchLogFilters(); // 필터 목록 갱신 (새로운 SIEM ID 등이 생겼을 수 있음)
             setShowManualModal(false);
-        } catch (err: any) {
-            alert(err.response?.data?.message || t('system.jobs.triggerFailed'));
+        } catch (err: unknown) {
+            alert(getApiErrorBody(err).message || t('system.jobs.triggerFailed'));
         }
     };
 

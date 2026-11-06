@@ -40,7 +40,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen, onClo
                 onClose();
                 setSuccess('');
             }, 1000); // Close after 1s
-        } catch (err) {
+        } catch {
             setError(t('changePassword.fail'));
         } finally {
             setLoading(false);

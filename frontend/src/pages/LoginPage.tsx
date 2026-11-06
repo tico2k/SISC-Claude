@@ -8,6 +8,7 @@ import { loginRequest } from "../config/msal";
 import { authService } from '../services/auth.service';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { AuthConfig } from '../types';
+import { getApiErrorBody, getErrorMessage } from '../utils/error';
 
 const LoginPage: React.FC = () => {
     const { t } = useTranslation();
@@ -47,8 +48,8 @@ const LoginPage: React.FC = () => {
         try {
             await login({ user_email: email, password });
             navigate('/dashboard');
-        } catch (err: any) {
-            const detail = err.response?.data?.detail;
+        } catch (err: unknown) {
+            const detail = getApiErrorBody(err).detail;
             setError(detail || t('login.failMessage'));
         } finally {
             setLoading(false);
@@ -67,9 +68,9 @@ const LoginPage: React.FC = () => {
             });
             // loginRedirect는 즉시 반환되며, 페이지가 리다이렉션됩니다.
             // 이후 처리는 App.tsx 또는 메인 컴포넌트에서 handleRedirectPromise()로 수행됩니다.
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Entra ID login initiation failed", err);
-            setError(err.message || t('login.errorStart'));
+            setError(getErrorMessage(err) || t('login.errorStart'));
             setSsoLoading(false);
         }
     };

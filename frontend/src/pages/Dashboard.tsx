@@ -10,15 +10,8 @@ import StatusFilter from '../components/dashboard/StatusFilter';
 import CasesTable from '../components/dashboard/CasesTable';
 import DailyStatsChart from '../components/dashboard/DailyStatsChart';
 import WeeklyReportWidget from '../components/dashboard/WeeklyReportWidget';
+import { DashboardFilters } from '../types';
 
-interface FilterState {
-    case_status: string | null;
-    priority: string | null;
-    case_type: string | null;
-    date: string | null;
-    startDate: string | null;
-    endDate: string | null;
-}
 
 const Dashboard: React.FC = () => {
     const { t } = useTranslation();
@@ -27,7 +20,7 @@ const Dashboard: React.FC = () => {
     // 관리자(보안/시스템) 및 감사팀 권한 여부 확인 (일반 사용자는 전사 통계 미노출)
     const isAdminOrAudit = role === '보안관리자' || role === '감사팀' || role === '시스템관리자';
 
-    const [filters, setFilters] = useState<FilterState>(() => {
+    const [filters, setFilters] = useState<DashboardFilters>(() => {
         const today = new Date();
         const twoWeeksAgo = new Date();
         twoWeeksAgo.setDate(today.getDate() - 14);
@@ -70,7 +63,7 @@ const Dashboard: React.FC = () => {
     });
 
     const toggleFilter = (type: string, value: string) => {
-        const key = type as keyof FilterState;
+        const key = type as keyof DashboardFilters;
         setFilters(prev => ({
             ...prev,
             [key]: prev[key] === value ? null : value
