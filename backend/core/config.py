@@ -3,7 +3,7 @@
 """
 
 import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional, List
 from pathlib import Path
 
@@ -75,10 +75,11 @@ class Settings(BaseSettings):
         url = self.APP_URL or self.CORS_ORIGINS.split(",")[0]
         return url.strip().rstrip("/")
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        extra = "ignore"  # 불필요한 환경 변수 무시
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore",  # 불필요한 환경 변수 무시
+    )
 
 
 # 싱글톤 인스턴스

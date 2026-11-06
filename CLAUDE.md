@@ -79,5 +79,5 @@ python backend/scripts/generate_openapi.py && cd frontend && npm run generate-ty
 - 케이스 상태 전이 규칙은 `backend/modules/cases/services.py`에 집중. 새 상태 변경 API도 반드시 이 함수들을 거칠 것
 - frontend build: 성공 (번들 1.1MB, 코드 분할 경고)
 - frontend lint: 오류 63 / 경고 7 (대부분 `no-explicit-any` 48건, `no-unused-vars` 11건)
-- Pydantic v2 `class Config` 사용 경고 다수 (`ConfigDict`로 전환 대상)
+- Pydantic 설정은 `model_config = ConfigDict(...)` / `SettingsConfigDict(...)` 사용 (`class Config` 금지). pytest 경고는 외부 라이브러리(passlib crypt, TestClient httpx) 2건만 남음
 - 알려진 개선 과제: 프로젝트 문서 `InsiderGuard_Claude_개발계획.md`의 Phase 1~3 참고

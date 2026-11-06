@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 from .models import UserRole, SiemType, CaseType, CaseStatus, CaseResult, CasePriority
@@ -29,8 +29,7 @@ class UserResponse(UserBase):
     idate: Optional[datetime] = None
     udate: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PasswordChange(BaseModel):
     old_password: str
@@ -57,8 +56,7 @@ class AttachmentResponse(BaseModel):
     file_size: Optional[int] = None
     uploaded_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # --- Case Schemas ---
 class CaseBase(BaseModel):
@@ -94,8 +92,7 @@ class CaseResponse(CaseBase):
     locked_at: Optional[datetime] = None
     locked_by_name: Optional[str] = None # For UI display
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PaginatedCaseResponse(BaseModel):
     items: List[CaseResponse]
@@ -123,8 +120,7 @@ class SubmissionResponse(SubmissionBase):
     submitted_at: datetime
     attachments: List[AttachmentResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # --- Review Schemas ---
 class ReviewCreate(BaseModel):
@@ -138,8 +134,7 @@ class ReviewResponse(ReviewCreate):
     reviewer_id: int
     reviewed_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # --- Log Schemas ---
 class LoginHistoryResponse(BaseModel):
@@ -149,8 +144,7 @@ class LoginHistoryResponse(BaseModel):
     ip_address: Optional[str]
     status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class SystemAuditLogResponse(BaseModel):
     log_id: int
@@ -162,8 +156,7 @@ class SystemAuditLogResponse(BaseModel):
     occurred_at: datetime
     actor: Optional[UserBase] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class BackgroundJobLogResponse(BaseModel):
     log_id: int
@@ -175,8 +168,7 @@ class BackgroundJobLogResponse(BaseModel):
     records_processed: int
     message: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # --- SIEM Schemas ---
 class SiemConfigBase(BaseModel):
@@ -227,8 +219,7 @@ class SiemConfigResponse(SiemConfigBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class SiemSyncHistoryBase(BaseModel):
     siem_id: int
@@ -240,8 +231,7 @@ class SiemSyncHistoryBase(BaseModel):
 class SiemSyncHistoryResponse(SiemSyncHistoryBase):
     history_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- Environment Config Schemas ---
@@ -281,8 +271,7 @@ class MenuPermissionBase(BaseModel):
 class MenuPermissionResponse(MenuPermissionBase):
     permission_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class MenuPermissionUpdate(BaseModel):
     is_visible: bool
