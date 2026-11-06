@@ -1,0 +1,291 @@
+from pydantic import BaseModel
+from typing import List, Optional
+from datetime import datetime
+from .models import UserRole, SiemType, CaseType, CaseStatus, CaseResult, CasePriority
+
+# --- User Schemas ---
+class UserBase(BaseModel):
+    user_email: str
+    user_name: str
+    company: Optional[str] = None
+    department: Optional[str] = None
+    role: UserRole
+
+class UserCreate(UserBase):
+    password: str
+
+class UserUpdate(UserBase):
+    password: Optional[str] = None
+
+class UserLogin(BaseModel):
+    user_email: str
+    password: str
+
+class EntraLoginRequest(BaseModel):
+    access_token: str
+
+class UserResponse(UserBase):
+    user_id: int
+    idate: Optional[datetime] = None
+    udate: datetime
+
+    class Config:
+        from_attributes = True
+
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str
+
+# --- Token Schemas ---
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    user_email: Optional[str] = None
+    role: Optional[str] = None
+
+class AuthConfigResponse(BaseModel):
+    allow_local: bool
+    allow_entra: bool
+    default_method: str
+
+# --- Attachment Schemas (Moved up) ---
+class AttachmentResponse(BaseModel):
+    file_id: int
+    original_filename: str
+    file_size: Optional[int] = None
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# --- Case Schemas ---
+class CaseBase(BaseModel):
+    siem_type: Optional[SiemType] = SiemType.SENTINEL
+    rule_title: str
+    rule_description: Optional[str] = None
+    incident_num: Optional[int] = None
+    summary: Optional[str] = None
+    case_type: CaseType
+    due_date: datetime
+    priority: Optional[CasePriority] = CasePriority.MEDIUM
+
+class CaseCreate(CaseBase):
+    related_employee_id: int
+    original_log_link: Optional[str] = None # Added for SIEM link
+
+class CaseResponse(CaseBase):
+    case_id: int
+    requester_id: Optional[int] = None
+    related_employee_id: Optional[int] = None
+    created_at: datetime
+    case_status: CaseStatus
+    case_result: Optional[CaseResult] = None
+    final_review_date: Optional[datetime] = None
+    final_reviewer_id: Optional[int] = None
+    related_employee: Optional[UserBase] = None # Added for UI display
+    submissions: List['SubmissionResponse'] = [] # Is populated by ORM default if lazy=joined or manual
+    attachments: List[AttachmentResponse] = [] # Admin attachments
+    review_comment: Optional[str] = None
+    reviewer_name: Optional[str] = None
+    original_log_link: Optional[str] = None # Added for UI display
+    locked_by_id: Optional[int] = None
+    locked_at: Optional[datetime] = None
+    locked_by_name: Optional[str] = None # For UI display
+
+    class Config:
+        from_attributes = True
+
+class PaginatedCaseResponse(BaseModel):
+    items: List[CaseResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+class CaseCloseRequest(BaseModel):
+    case_result: CaseResult
+    close_reason: str
+
+# --- Submission Schemas ---
+class SubmissionBase(BaseModel):
+    content: str
+    classification: Optional[str] = None
+
+class SubmissionCreate(SubmissionBase):
+    case_id: int
+
+class SubmissionResponse(SubmissionBase):
+    submission_id: int
+    case_id: int
+    submitter_id: Optional[int] = None
+    submitted_at: datetime
+    attachments: List[AttachmentResponse] = []
+
+    class Config:
+        from_attributes = True
+
+# --- Review Schemas ---
+class ReviewCreate(BaseModel):
+    case_id: int
+    case_status: CaseStatus
+    case_result: CaseResult
+    comments: Optional[str] = None
+
+class ReviewResponse(ReviewCreate):
+    review_id: int
+    reviewer_id: int
+    reviewed_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# --- Log Schemas ---
+class LoginHistoryResponse(BaseModel):
+    login_id: int
+    user_id: int
+    login_at: datetime
+    ip_address: Optional[str]
+    status: str
+
+    class Config:
+        from_attributes = True
+
+class SystemAuditLogResponse(BaseModel):
+    log_id: int
+    user_id: Optional[int] = None
+    # Model has actor_id. Relationship 'actor'.
+    actor_id: Optional[int]
+    action: str
+    ip_address: Optional[str]
+    occurred_at: datetime
+    actor: Optional[UserBase] = None
+
+    class Config:
+        from_attributes = True
+
+class BackgroundJobLogResponse(BaseModel):
+    log_id: int
+    job_id: str
+    job_name: str
+    status: str
+    execution_type: str
+    execution_time: datetime
+    records_processed: int
+    message: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+# --- SIEM Schemas ---
+class SiemConfigBase(BaseModel):
+    siem_type: 'SiemType'
+    name: str
+    host_url: str
+    tenant_id: Optional[str] = None
+    client_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    subscription_id: Optional[str] = None
+    resource_group: Optional[str] = None
+    workspace_name: Optional[str] = None
+    api_key: Optional[str] = None
+    test_query: Optional[str] = None
+    field_mapping: Optional[dict] = None
+    cron_expression: Optional[str] = None
+    is_active: bool = True
+
+class SiemConfigCreate(SiemConfigBase):
+    pass
+
+class SiemTestConnectionRequest(SiemConfigBase):
+    siem_id: Optional[int] = None
+
+class SiemCaseConvertRequest(BaseModel):
+    config_id: Optional[int] = None
+    log_data: dict
+    mapping_override: Optional[dict] = None
+
+class SiemConfigUpdate(BaseModel):
+    siem_type: Optional['SiemType'] = None
+    name: Optional[str] = None
+    host_url: Optional[str] = None
+    tenant_id: Optional[str] = None
+    client_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    subscription_id: Optional[str] = None
+    resource_group: Optional[str] = None
+    workspace_name: Optional[str] = None
+    api_key: Optional[str] = None
+    test_query: Optional[str] = None
+    field_mapping: Optional[dict] = None
+    cron_expression: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class SiemConfigResponse(SiemConfigBase):
+    siem_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class SiemSyncHistoryBase(BaseModel):
+    siem_id: int
+    execution_time: datetime
+    status: str
+    records_fetched: int
+    error_message: Optional[str] = None
+
+class SiemSyncHistoryResponse(SiemSyncHistoryBase):
+    history_id: int
+
+    class Config:
+        from_attributes = True
+
+
+# --- Environment Config Schemas ---
+class EnvEntry(BaseModel):
+    key: str
+    value: str
+    is_sensitive: bool = False
+    category: str = "General"
+    description: str = ""
+
+class EnvResponse(BaseModel):
+    backend: List[EnvEntry]
+    frontend: List[EnvEntry]
+
+class EnvUpdateRequest(BaseModel):
+    file_type: str  # "backend" or "frontend"
+    key: str
+    value: str
+
+# --- Job Schemas ---
+class JobResponse(BaseModel):
+    id: str
+    name: str
+    next_run_time: Optional[datetime] = None
+    status: str
+    cron_expression: Optional[str] = None
+
+class JobRescheduleRequest(BaseModel):
+    cron_expression: str
+
+# --- Menu Permission Schemas ---
+class MenuPermissionBase(BaseModel):
+    role: UserRole
+    menu_path: str
+    is_visible: bool
+
+class MenuPermissionResponse(MenuPermissionBase):
+    permission_id: int
+
+    class Config:
+        from_attributes = True
+
+class MenuPermissionUpdate(BaseModel):
+    is_visible: bool
+
+# Resolve forward references
+CaseResponse.model_rebuild()

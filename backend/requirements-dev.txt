@@ -1,0 +1,4 @@
+# 테스트·개발용 의존성 (운영 의존성은 requirements.txt)
+-r requirements.txt
+pytest
+httpx

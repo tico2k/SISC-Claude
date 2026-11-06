@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>마감일 알림</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .footer {
+            background: #333;
+            color: #999;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .days-left {
+            font-size: 48px;
+            font-weight: bold;
+            color: #f5576c;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #f5576c;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>⏰ 마감일이 다가오고 있습니다!</h1>
+    </div>
+
+    <div class="content">
+        <p>안녕하세요, <strong>{{ employee_name }}</strong>님</p>
+
+        <div class="warning">
+            <p style="margin: 0; font-size: 18px;">케이스 #{{ case_id }} 마감까지</p>
+            <div class="days-left">{{ days_left }}일</div>
+            <p style="margin: 0;">남았습니다</p>
+        </div>
+
+        <p>아래 케이스의 소명 제출 마감일이 다가오고 있습니다. 가능한 빠른 시일 내에 소명을 제출해주시기 바랍니다.</p>
+
+        <div style="background: white; padding: 20px; border-left: 4px solid #f5576c; margin: 20px 0;">
+            <div style="margin: 10px 0;">
+                <strong style="color: #f5576c;">케이스 번호:</strong> {{ case_id }}
+            </div>
+            <div style="margin: 10px 0;">
+                <strong style="color: #f5576c;">규칙 제목:</strong> {{ rule_title }}
+            </div>
+            <div style="margin: 10px 0;">
+                <strong style="color: #f5576c;">마감일:</strong> {{ due_date }}
+            </div>
+        </div>
+
+        <p style="text-align: center;">
+            <a href="{{ app_url }}/cases/{{ case_id }}" class="btn">지금 소명 제출하기</a>
+        </p>
+
+        <p><small>이 이메일은 Fleit InsiderGuard 시스템에서 자동으로 발송되었습니다.</small></p>
+    </div>
+
+    <div class="footer">
+        <p>&copy; 2026 Fleit Lab. All rights reserved.</p>
+        <p>이 이메일은 {{ employee_email }}로 발송되었습니다.</p>
+    </div>
+</body>
+
+</html>

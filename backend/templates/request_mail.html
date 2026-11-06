@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            line-height: 1.6;
+            color: #334155;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 40px;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 900;
+            color: #0f172a;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .badge-urgent {
+            background-color: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fee2e2;
+        }
+
+        .badge-normal {
+            background-color: #fffafb;
+            color: #ea580c;
+            border: 1px solid #ffedd5;
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
+
+        .info-box {
+            background-color: #f8fafc;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .info-item {
+            margin-bottom: 10px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #64748b;
+            width: 80px;
+            display: inline-block;
+        }
+
+        .reason-box {
+            border-left: 4px solid #6366f1;
+            padding-left: 20px;
+            margin: 25px 0;
+            color: #475569;
+            font-weight: 500;
+        }
+
+        .footer {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 40px;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 20px;
+        }
+
+        .button {
+            display: inline-block;
+            background-color: #0f172a;
+            color: #ffffff !important;
+            padding: 12px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Fleit InsiderGuard</div>
+            <div class="badge {priority_class}">{priority}</div>
+        </div>
+
+        <h1 class="title">보안 이벤트 소명 요청 안내</h1>
+
+        <p>안녕하세요, {user_name}님.</p>
+        <p>내부 보안 모니터링 시스템에 의해 감지된 이상 행위에 대해 추가 확인이 필요합니다.<br>
+            아래 내용을 확인하신 후, 마감 기한 내에 소명을 제출해 주시기 바랍니다.</p>
+
+        <div class="info-box">
+            <div class="info-item"><span class="info-label">소명 번호:</span> #{incident_num}</div>
+            <div class="info-item"><span class="info-label">탐지 항목:</span> {rule_title}</div>
+            <div class="info-item"><span class="info-label">마감 기한:</span> <span
+                    style="color: #ef4444; font-weight: 900;">{due_date}</span></div>
+        </div>
+
+        <div class="reason-box">
+            <strong>[관리자 요청 사유]</strong><br>
+            {request_reason}
+        </div>
+
+        <p>시스템에 접속하여 상세 내용을 확인하고 소명 자료를 업로드해 주세요.</p>
+
+        <div style="text-align: center;">
+            <a href="{login_url}" class="button">소명 시스템 바로가기</a>
+        </div>
+
+        <div class="footer">
+            본 메일은 시스템에 의해 자동 발송되었습니다.<br>
+            문의 사항은 보안팀으로 연락해 주시기 바랍니다.
+        </div>
+    </div>
+</body>
+
+</html>

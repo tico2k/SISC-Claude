@@ -1,0 +1,58 @@
+# Virtual Environments
+venv/
+.venv/
+node_modules/
+frontend/node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Environment Variables & Secrets
+.env
+frontend/.env
+*.pem
+key.pem
+cert.pem
+
+# Databases
+*.db
+*.sqlite3
+*.sqlite
+sql_app.db
+
+# Logs
+logs/
+*.log
+
+# OS Metadata
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project Specific
+frontend/dist/
+uploads/
+_archive/
+# 로컬 전용 일회성 스크립트 (scripts/legacy/ 로 이동됨)
+scripts/legacy/reset_passwords.py
+scripts/legacy/update_database.py
+scripts/legacy/verify_init.py
+
+# AI & Agents
+.agents/
+.gemini/
+.agent/
+.system_generated/
+# 사용자 계정 정보 (실제 이메일·비밀번호 포함, 커밋 금지)
+docs/user_info.csv
+docs/user_info.json

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>케이스 검토 완료</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: {
+                % if decision=='APPROVE' %
+            }
+
+            linear-gradient(135deg, #11998e 0%, #38ef7d 100%) {
+                % else %
+            }
+
+            linear-gradient(135deg, #eb3349 0%, #f45c43 100%) {
+                % endif %
+            }
+
+            ;
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .footer {
+            background: #333;
+            color: #999;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .result-box {
+            background: white;
+            padding: 20px;
+
+            border-left: 4px solid {
+                % if decision=='APPROVE' %
+            }
+
+            #38ef7d {
+                % else %
+            }
+
+            #f45c43 {
+                % endif %
+            }
+
+            ;
+            margin: 20px 0;
+        }
+
+        .info-row {
+            margin: 10px 0;
+        }
+
+        .label {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .decision {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+
+            color: {
+                % if decision=='APPROVE' %
+            }
+
+            #38ef7d {
+                % else %
+            }
+
+            #f45c43 {
+                % endif %
+            }
+
+            ;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>📋 케이스 검토가 완료되었습니다</h1>
+    </div>
+
+    <div class="content">
+        <p>안녕하세요, <strong>{{ employee_name }}</strong>님</p>
+
+        <p>귀하의 소명 케이스가 검토 완료되었습니다.</p>
+
+        <div class="decision">
+            {% if decision == 'APPROVE' %}
+            ✅ 승인됨
+            {% elif decision == 'REJECT' %}
+            ❌ 반려됨
+            {% else %}
+            🔒 종결됨
+            {% endif %}
+        </div>
+
+        <div class="result-box">
+            <div class="info-row">
+                <span class="label">케이스 번호:</span> {{ case_id }}
+            </div>
+            <div class="info-row">
+                <span class="label">검토자:</span> {{ reviewer_name }}
+            </div>
+            <div class="info-row">
+                <span class="label">검토일:</span> {{ reviewed_at }}
+            </div>
+            {% if result %}
+            <div class="info-row">
+                <span class="label">결과:</span> {{ result }}
+            </div>
+            {% endif %}
+            {% if comments %}
+            <div class="info-row">
+                <span class="label">검토 의견:</span><br>
+                <div style="margin-top: 10px; padding: 15px; background: #f5f5f5; border-radius: 5px;">
+                    {{ comments }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <p style="text-align: center;">
+            <a href="{{ app_url }}/cases/{{ case_id }}" class="btn">케이스 상세 보기</a>
+        </p>
+
+        <p><small>이 이메일은 Fleit InsiderGuard 시스템에서 자동으로 발송되었습니다.</small></p>
+    </div>
+
+    <div class="footer">
+        <p>&copy; 2026 Fleit Lab. All rights reserved.</p>
+        <p>이 이메일은 {{ employee_email }}로 발송되었습니다.</p>
+    </div>
+</body>
+
+</html>
