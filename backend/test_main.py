@@ -539,7 +539,7 @@ def test_email_link_uses_app_url_setting(wf, monkeypatch):
     from backend.tasks import email_tasks
     monkeypatch.setattr(settings, "APP_URL", "https://sics.example.com")
     sent = {}
-    monkeypatch.setattr(email_tasks.email_service, "send_template_email", lambda **kw: sent.update(kw) or True)
+    monkeypatch.setattr(email_tasks, "send_template_mail", lambda **kw: sent.update(kw) or True)
 
     cid = _make_case(wf["ids"]["owner"], models.CaseStatus.UNCLASSIFIED)
     email_tasks.send_case_created_email(cid)
@@ -553,3 +553,63 @@ def test_frontend_url_falls_back_to_first_cors_origin(monkeypatch):
     assert settings.frontend_url == "https://a.example.com"
     monkeypatch.setattr(settings, "APP_URL", "https://sics.example.com/")
     assert settings.frontend_url == "https://sics.example.com"
+
+
+# --- 메일 통합: 모든 메일은 core.mail 프로바이더 하나로 발송 ---
+
+class _FakeProvider:
+    def __init__(self):
+        self.sent = []
+
+    def send_mail(self, to_email, subject, content, is_html=True, attachments=None):
+        self.sent.append({"to": to_email, "subject": subject, "content": content})
+        return True
+
+
+@pytest.fixture
+def fake_provider(monkeypatch):
+    from backend.core.mail.factory import MailFactory
+    provider = _FakeProvider()
+    monkeypatch.setattr(MailFactory, "_instance", provider)
+    return provider
+
+
+def test_request_notification_escapes_html_and_keeps_line_breaks(fake_provider):
+    from backend.core.mail import services as mail_services
+    ok = mail_services.send_request_notification(
+        to_email="u@example.com", user_name="홍길동", priority="높음", incident_num="77",
+        rule_title="<script>alert(1)</script>", due_date=datetime(2099, 1, 2),
+        request_reason="첫 줄\n<b>둘째</b>", case_id=5,
+    )
+    assert ok is True
+    html = fake_provider.sent[0]["content"]
+    assert "<script>" not in html and "&lt;script&gt;" in html
+    assert "첫 줄<br>&lt;b&gt;둘째&lt;/b&gt;" in html
+    assert "/cases/5" in html and "badge-urgent" in html
+    assert fake_provider.sent[0]["subject"] == "[높음] 보안 소명 요청 안내 - #77"
+
+
+def test_case_task_emails_go_through_provider(wf, fake_provider):
+    """생성·검토·마감 알림 메일도 설정된 프로바이더(SMTP/Outlook)로 발송되어야 한다"""
+    from backend.tasks import email_tasks
+    cid = _make_case(wf["ids"]["owner"], models.CaseStatus.APPROVE, models.CaseResult.JUSTIFIED)
+    email_tasks.send_case_created_email(cid)
+    email_tasks.send_case_reviewed_email(cid)
+    email_tasks.send_deadline_reminder_email(cid, 3)
+
+    assert [m["to"] for m in fake_provider.sent] == ["owner@wf.com"] * 3
+    subjects = [m["subject"] for m in fake_provider.sent]
+    assert "승인 완료" in subjects[1]          # 상태 비교 버그 회귀 방지 (예전엔 항상 '종결')
+    assert "마감 3일 전" in subjects[2]
+    assert all(f"/cases/{cid}" in m["content"] for m in fake_provider.sent)
+
+
+def test_mail_factory_selects_provider_by_setting(monkeypatch):
+    from backend.core.config import settings
+    from backend.core.mail.factory import MailFactory
+    from backend.core.mail.graph_provider import GraphMailProvider
+    from backend.core.mail.smtp_provider import SMTPProvider
+    for sender_type, cls in (("OUTLOOK", GraphMailProvider), ("SMTP", SMTPProvider)):
+        monkeypatch.setattr(MailFactory, "_instance", None)
+        monkeypatch.setattr(settings, "MAIL_SENDER_TYPE", sender_type)
+        assert isinstance(MailFactory.get_provider(), cls)

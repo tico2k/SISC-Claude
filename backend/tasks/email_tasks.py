@@ -1,5 +1,5 @@
 """
-이메일 관련 Celery 태스크
+이메일 발송 작업 (BackgroundTasks·스케줄러에서 실행)
 
 케이스 생성, 검토 완료, 마감 알림 등 이메일 발송 태스크
 """
@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from ..core.config import settings
 from ..core.database import SessionLocal
-from ..models import ClarificationCase, User
-from ..services.email_service import email_service
+from ..models import ClarificationCase, User, CaseStatus
+from ..core.mail.services import send_template_mail
 from ..core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -44,7 +44,7 @@ def send_case_created_email(case_id: int):
             return
         
         # 이메일 발송
-        success = email_service.send_template_email(
+        success = send_template_mail(
             to_email=employee.user_email,
             subject=f"[Fleit InsiderGuard] 새로운 소명 케이스 #{case_id}",
             template_name="case_created.html",
@@ -104,10 +104,10 @@ def send_case_reviewed_email(case_id: int):
         ).first()
         
         # 이메일 제목 결정
-        if case.case_status.value == "APPROVE":
+        if case.case_status == CaseStatus.APPROVE:
             subject = f"[Fleit InsiderGuard] 케이스 #{case_id} 승인 완료"
             decision = "APPROVE"
-        elif case.case_status.value == "REJECT":
+        elif case.case_status == CaseStatus.REJECT:
             subject = f"[Fleit InsiderGuard] 케이스 #{case_id} 반려"
             decision = "REJECT"
         else:
@@ -115,7 +115,7 @@ def send_case_reviewed_email(case_id: int):
             decision = "CLOSE"
         
         # 이메일 발송
-        success = email_service.send_template_email(
+        success = send_template_mail(
             to_email=employee.user_email,
             subject=subject,
             template_name="case_reviewed.html",
@@ -171,7 +171,7 @@ def send_deadline_reminder_email(case_id: int, days_left: int):
             return
         
         # 이메일 발송
-        success = email_service.send_template_email(
+        success = send_template_mail(
             to_email=employee.user_email,
             subject=f"[Fleit InsiderGuard] 케이스 #{case_id} 마감 {days_left}일 전",
             template_name="deadline_reminder.html",

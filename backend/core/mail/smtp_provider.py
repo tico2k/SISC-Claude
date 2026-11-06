@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class SMTPProvider(MailProvider):
     """SMTP 기반 이메일 발송"""
     
-    async def send_mail(
+    def send_mail(
         self,
         to_email: str,
         subject: str,

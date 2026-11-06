@@ -107,31 +107,31 @@
     <div class="container">
         <div class="header">
             <div class="logo">Fleit InsiderGuard</div>
-            <div class="badge {priority_class}">{priority}</div>
+            <div class="badge {{ priority_class }}">{{ priority }}</div>
         </div>
 
         <h1 class="title">보안 이벤트 소명 요청 안내</h1>
 
-        <p>안녕하세요, {user_name}님.</p>
+        <p>안녕하세요, {{ user_name }}님.</p>
         <p>내부 보안 모니터링 시스템에 의해 감지된 이상 행위에 대해 추가 확인이 필요합니다.<br>
             아래 내용을 확인하신 후, 마감 기한 내에 소명을 제출해 주시기 바랍니다.</p>
 
         <div class="info-box">
-            <div class="info-item"><span class="info-label">소명 번호:</span> #{incident_num}</div>
-            <div class="info-item"><span class="info-label">탐지 항목:</span> {rule_title}</div>
+            <div class="info-item"><span class="info-label">소명 번호:</span> #{{ incident_num }}</div>
+            <div class="info-item"><span class="info-label">탐지 항목:</span> {{ rule_title }}</div>
             <div class="info-item"><span class="info-label">마감 기한:</span> <span
-                    style="color: #ef4444; font-weight: 900;">{due_date}</span></div>
+                    style="color: #ef4444; font-weight: 900;">{{ due_date }}</span></div>
         </div>
 
         <div class="reason-box">
             <strong>[관리자 요청 사유]</strong><br>
-            {request_reason}
+            {{ request_reason }}
         </div>
 
         <p>시스템에 접속하여 상세 내용을 확인하고 소명 자료를 업로드해 주세요.</p>
 
         <div style="text-align: center;">
-            <a href="{login_url}" class="button">소명 시스템 바로가기</a>
+            <a href="{{ login_url }}" class="button">소명 시스템 바로가기</a>
         </div>
 
         <div class="footer">

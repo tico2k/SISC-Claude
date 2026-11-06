@@ -34,6 +34,7 @@ python backend/scripts/generate_openapi.py && cd frontend && npm run generate-ty
 - `backend/models.py`, `backend/schemas.py` — 공용 ORM 모델 / Pydantic 스키마
 - `backend/modules/<도메인>/router.py` — API (auth, users, cases, submissions, reviews, siem, system, audit, reports)
 - `backend/core/` — config, database, dependencies(인증), permissions(RBAC), security(Fernet), scheduler, mail
+- 메일은 `backend/core/mail/services.py`의 `send_template_mail` 하나로 발송 (템플릿 `backend/templates/email/`, SMTP/Outlook은 `MAIL_SENDER_TYPE`)
 - `backend/services/` — SIEM 수집기 (`BaseCollector` → `SentinelCollector`, `collector_factory`)
 - `backend/tasks/` — 배치/메일/SIEM 동기화 작업
 - `frontend/src/pages/` 화면, `services/` API 클라이언트, `components/`, `locales/{ko,en}/translation.json`
@@ -74,7 +75,7 @@ python backend/scripts/generate_openapi.py && cd frontend && npm run generate-ty
 - 보류: 관리자 기본 비밀번호 변경 강제(사용자 요청으로 제외)
 
 ## 현재 기준선 (2026-11-06 확인)
-- pytest: 38개 전체 통과 (Phase 1 보안 회귀 + Phase 2 케이스 워크플로우: 상태 전이, 사용자 격리, Case Lock, 감사로그, 메일 작업 호출·링크 주소)
+- pytest: 41개 전체 통과 (Phase 1 보안 회귀 + Phase 2 케이스 워크플로우: 상태 전이, 사용자 격리, Case Lock, 감사로그, 메일 작업 호출·링크 주소, 메일 프로바이더 통합)
 - 테스트는 autouse 픽스처에서 메일 발송을 끄고 메일 작업의 DB를 테스트 DB로 교체함 (운영 DB 접근 방지)
 - 케이스 상태 전이 규칙은 `backend/modules/cases/services.py`에 집중. 새 상태 변경 API도 반드시 이 함수들을 거칠 것
 - frontend build: 성공 (번들 1.1MB, 코드 분할 경고)

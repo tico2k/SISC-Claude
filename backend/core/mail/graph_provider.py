@@ -32,7 +32,7 @@ class GraphMailProvider(MailProvider):
             logger.error(f"Failed to get Microsoft Graph access token: {str(e)}")
             return None
 
-    async def send_mail(
+    def send_mail(
         self,
         to_email: str,
         subject: str,
