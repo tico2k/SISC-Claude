@@ -23,7 +23,7 @@
 ### 1.2 저장소 복제 (Clone Repository)
 
 ```bash
-git clone https://github.com/tico2k/SICS.git
+git clone https://github.com/tico2k/SISC-Claude.git Fleit_InsiderGuard
 cd Fleit_InsiderGuard
 ```
 

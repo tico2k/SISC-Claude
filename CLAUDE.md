@@ -58,7 +58,7 @@ python backend/scripts/generate_openapi.py && cd frontend && npm run generate-ty
 1. 관련 코드·문서 확인 → 2. 변경 계획 공유 → 3. 구현 → 4. 테스트·빌드 실행 → 5. 결과 보고
 - 완료 조건: `pytest` 통과(기존 실패 제외) + `npm run build` 성공
 - 기능 변경 시 `docs/` 해당 문서 동시 갱신
-- 저장소: `origin` = https://github.com/tico2k/SISC-Claude.git (Claude 전용. 이전 Antigravity 저장소 SICS.git과는 분리됨)
+- 저장소: `origin` = https://github.com/tico2k/SISC-Claude.git (유일한 저장소. 이전 SICS.git은 이 프로젝트에서 사용하지 않음 — 연결·push·참조 금지)
 - 브랜치: `main` 직접 수정 금지, `feature/<내용>`, `fix/<내용>` 브랜치에서 작업. 커밋은 사용자가 요청할 때만
 
 ## 수정 금지 / 주의
