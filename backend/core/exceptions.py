@@ -62,7 +62,7 @@ class ValidationException(BaseAPIException):
     
     def __init__(self, detail: str = "입력 데이터가 올바르지 않습니다"):
         super().__init__(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,  # Starlette 버전별 상수명 차이(ENTITY→CONTENT)를 피하려고 숫자 사용
             detail=detail,
             error_code="VALIDATION_ERROR"
         )

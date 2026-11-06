@@ -5,7 +5,7 @@ class MailProvider(ABC):
     """이메일 발송 프로바이더 인터페이스"""
     
     @abstractmethod
-    async def send_mail(
+    def send_mail(
         self,
         to_email: str,
         subject: str,

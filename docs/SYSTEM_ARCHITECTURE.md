@@ -104,6 +104,8 @@ React 클라이언트와 FastAPI 서버는 OpenAPI 기반으로 완벽히 타입
 3. **인증 / 인가 (Auth)**: 헤더의 JWT 무결성을 검증(`get_current_user`)하고, 라우터 레벨에서 `require_roles` 데코레이터를 통해 RBAC 인가를 판별합니다.
 4. **처리 (Service)**: 유효한 요청은 Service Layer로 인계되어 RDB 트랜잭션 등 비즈니스 로직을 수행합니다.
 5. **비동기 이관 (Background)**: 이메일 전송과 같은 I/O 바운드 작업은 `BackgroundTasks.add_task()`를 통해 즉시 위임됩니다.
+   - 메일은 `backend/core/mail/services.py` 하나로 발송합니다. `backend/templates/email/*.html`(Jinja2, HTML 자동 이스케이프)을 렌더링한 뒤, `MAIL_SENDER_TYPE`(SMTP 또는 OUTLOOK)에 따라 `MailFactory`가 고른 프로바이더로 보냅니다.
+   - 발송 함수는 blocking I/O이므로 동기 함수로 두어 BackgroundTasks·스케줄러의 스레드에서 실행됩니다 (이벤트 루프를 막지 않음).
 6. **응답 (Response)**: 직렬화된 JSON 결과가 클라이언트로 반환되며 성공/실패 여부에 따라 UI가 반응합니다.
 
 ### 🌊 데이터 트랜잭션 흐름도 (ex. 소명 제출)
