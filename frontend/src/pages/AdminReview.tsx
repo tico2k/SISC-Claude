@@ -76,7 +76,7 @@ const AdminReview: React.FC = () => {
             const data = await caseService.getCases(0, 50000);
             // 미확인, 요청, 제출 상태의 모든 관리 대상 인시던트 표시
             setCases(data.filter(c => c.case_status === '미확인' || c.case_status === '요청' || c.case_status === '제출'));
-        } catch (error) {
+        } catch {
             console.error("Failed to fetch cases");
         } finally {
             setLoading(false);
@@ -122,7 +122,7 @@ const AdminReview: React.FC = () => {
             fetchCases(); // Refresh list
             setSearchParams({}); // Clear selection
             alert(t('system.review.alertSuccess'));
-        } catch (error) {
+        } catch {
             alert(t('system.review.alertFail'));
         } finally {
             setSubmitting(false);

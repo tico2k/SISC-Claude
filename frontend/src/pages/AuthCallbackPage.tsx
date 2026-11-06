@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { authService } from '../services/auth.service';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorBody, getErrorMessage } from '../utils/error';
 
 const AuthCallbackPage: React.FC = () => {
     const { t } = useTranslation();
@@ -35,9 +36,9 @@ const AuthCallbackPage: React.FC = () => {
                                     account: allAccounts[0]
                                 });
                                 accessToken = silentResponse.accessToken;
-                            } catch (error: any) {
+                            } catch (error: unknown) {
                                 console.error("Silent token acquisition failed:", error);
-                                setErrorMsg(`Silent Token Error: ${error.message || error}`);
+                                setErrorMsg(`Silent Token Error: ${getErrorMessage(error)}`);
                             }
                         }
                     }
@@ -52,20 +53,20 @@ const AuthCallbackPage: React.FC = () => {
                             setToken(authData.access_token);
                             setStatusKey("completed");
                             setTimeout(() => navigate('/dashboard', { replace: true }), 500);
-                        } catch (apiError: any) {
+                        } catch (apiError: unknown) {
                             console.error("Backend auth failed:", apiError);
                             setStatusKey("serverError");
-                            setErrorMsg(`Backend Error: ${apiError.response?.data?.detail || apiError.message}`);
+                            setErrorMsg(`Backend Error: ${getApiErrorBody(apiError).detail || getErrorMessage(apiError)}`);
                         }
                     } else {
                         setStatusKey("noAuthInfo");
                         setErrorMsg(t('auth.callback.noTokenDetail'));
                     }
                 })
-                .catch((error: any) => {
+                .catch((error: unknown) => {
                     console.error("MSAL redirect promise error:", error);
                     setStatusKey("generalError");
-                    setErrorMsg(`MSAL Error: ${error.message || error}`);
+                    setErrorMsg(`MSAL Error: ${getErrorMessage(error)}`);
                 });
         }
     }, [inProgress, instance, navigate, setToken, t]);

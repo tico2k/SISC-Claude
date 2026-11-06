@@ -1,6 +1,13 @@
 import { client } from './client';
 import { SiemConfiguration, SiemSyncHistory } from '../types';
 
+/** SIEM 연결 테스트 결과. 성공 시 data에 조회된 원본 로그 행이 들어 있다 */
+export interface SiemTestResult {
+    status: string;
+    message: string;
+    data?: Record<string, unknown>[];
+}
+
 export const siemService = {
     getConfigs: async (): Promise<SiemConfiguration[]> => {
         const response = await client.get<SiemConfiguration[]>('/siem/config');
@@ -17,8 +24,8 @@ export const siemService = {
         return response.data;
     },
 
-    testConnection: async (config: SiemConfiguration): Promise<{ status: string; message: string }> => {
-        const response = await client.post<{ status: string; message: string }>('/siem/test-connection', config);
+    testConnection: async (config: SiemConfiguration): Promise<SiemTestResult> => {
+        const response = await client.post<SiemTestResult>('/siem/test-connection', config);
         return response.data;
     },
 
@@ -26,8 +33,8 @@ export const siemService = {
         await client.delete(`/siem/config/${configId}`);
     },
 
-    convertCase: async (logData: any, mappingOverride?: Record<string, string>): Promise<{ status: string; case_id: number; message: string }> => {
-        const payload: any = { log_data: logData };
+    convertCase: async (logData: Record<string, unknown>, mappingOverride?: Record<string, string>): Promise<{ status: string; case_id: number; message: string }> => {
+        const payload: { log_data: Record<string, unknown>; mapping_override?: Record<string, string> } = { log_data: logData };
         if (mappingOverride) {
             payload.mapping_override = mappingOverride;
         }

@@ -140,3 +140,75 @@ export interface SiemSyncHistory {
     records_fetched: number;
     error_message?: string;
 }
+
+// --- 대시보드·통계 (백엔드 /cases/stats, /cases/daily-stats, /cases/weekly-reports 응답) ---
+export interface DashboardFilters {
+    case_status: string | null;
+    priority: string | null;
+    case_type: string | null;
+    date: string | null;
+    startDate: string | null;
+    endDate: string | null;
+}
+
+export interface CaseStatsChartPoint {
+    date: string;
+    case_type: string | null;
+    count: number;
+}
+
+export interface CaseStats {
+    total: number;
+    status: { unclassified: number; requested: number; submitted: number; approved: number; rejected: number; closed: number };
+    priority: { high: number; medium: number; low: number };
+    case_type: { leak: number; violation: number; system: number; abuse: number };
+    chart_data: CaseStatsChartPoint[];
+}
+
+export interface DailyStat {
+    date: string;
+    unclassified: number;
+    request: number;
+    submit: number;
+    reviewed: number;
+}
+
+export interface WeeklyReport {
+    report_id: number;
+    week_start: string;
+    week_end: string;
+    created: number;
+    approved: number;
+    rejected: number;
+    generated_at: string | null;
+}
+
+export interface PaginatedCases {
+    items: Case[];
+    total: number;
+    page: number;
+    size: number;
+    pages: number;
+}
+
+// --- 사용자 일괄 등록·Entra 동기화 응답 ---
+export interface UserUploadStats {
+    total: number;
+    created: number;
+    skipped: number;
+    errors: number;
+    details: string[];
+}
+
+export interface UserUploadResponse {
+    message: string;
+    stats: UserUploadStats;
+}
+
+export interface EntraSyncResponse {
+    message: string;
+    stats: { total: number; created: number; updated: number };
+}
+
+/** 관리자 수동 작업 실행 시 전달하는 옵션 (예: { target_date: '2026-11-01' }) */
+export type JobTriggerPayload = Record<string, string>;

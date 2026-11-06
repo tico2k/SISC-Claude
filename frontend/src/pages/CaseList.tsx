@@ -32,7 +32,7 @@ const CaseList: React.FC = () => {
             const data = await caseService.getCases(0, 50000);
             // 나의 소명 관리에서는 소명 요청이 진행 중인 건부터 노출 (미확인 및 오탐 종결 건은 비노출)
             setCases(data.filter(c => c.case_status !== '미확인' && c.case_status !== '종결'));
-        } catch (error) {
+        } catch {
             console.error("Failed to fetch cases");
             alert(t('common.fail'));
         } finally {

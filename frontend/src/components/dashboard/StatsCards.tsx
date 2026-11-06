@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, AlertTriangle, MinusCircle, CheckSquare, ShieldAlert, AlertCircle, Activity, UserCircle } from 'lucide-react';
+import { CaseStats, DashboardFilters } from '../../types';
 
 interface StatsCardsProps {
-    stats: any;
-    filters: any;
+    stats?: CaseStats;
+    filters: DashboardFilters;
     toggleFilter: (type: string, value: string) => void;
     clearFilters: () => void;
     activeFilterCount: number;

@@ -31,7 +31,7 @@ const RegisterPage: React.FC = () => {
             await authService.register(formData);
             alert(t('register.successAlert'));
             navigate('/login');
-        } catch (err) {
+        } catch {
             setError(t('register.failError'));
         } finally {
             setLoading(false);

@@ -79,6 +79,6 @@ python backend/scripts/generate_openapi.py && cd frontend && npm run generate-ty
 - 테스트는 autouse 픽스처에서 메일 발송을 끄고 메일 작업의 DB를 테스트 DB로 교체함 (운영 DB 접근 방지)
 - 케이스 상태 전이 규칙은 `backend/modules/cases/services.py`에 집중. 새 상태 변경 API도 반드시 이 함수들을 거칠 것
 - frontend build: 성공 (번들 1.1MB, 코드 분할 경고)
-- frontend lint: 오류 63 / 경고 7 (대부분 `no-explicit-any` 48건, `no-unused-vars` 11건)
+- frontend lint: 오류 0 / 경고 7 (`react-hooks/exhaustive-deps` 6건 등, 동작 영향 검토 후 정리 예정). 새 코드에 `any` 금지 — API 응답 타입은 `src/types/index.ts`, catch 절은 `unknown` + `src/utils/error.ts` 헬퍼 사용
 - Pydantic 설정은 `model_config = ConfigDict(...)` / `SettingsConfigDict(...)` 사용 (`class Config` 금지). pytest 경고는 외부 라이브러리(passlib crypt, TestClient httpx) 2건만 남음
 - 알려진 개선 과제: 프로젝트 문서 `InsiderGuard_Claude_개발계획.md`의 Phase 1~3 참고

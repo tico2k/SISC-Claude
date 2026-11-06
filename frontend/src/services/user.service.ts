@@ -1,5 +1,5 @@
 import { client } from './client';
-import { User, UserRegisterRequest } from '../types';
+import { User, UserRegisterRequest, UserUploadResponse, EntraSyncResponse } from '../types';
 
 export const userService = {
     getUsers: async (): Promise<User[]> => {
@@ -12,7 +12,7 @@ export const userService = {
         return response.data;
     },
 
-    updateUser: async (userId: number, userData: Partial<User>): Promise<User> => {
+    updateUser: async (userId: number, userData: Partial<UserRegisterRequest>): Promise<User> => {
         const response = await client.put<User>(`/users/${userId}`, userData);
         return response.data;
     },
@@ -21,8 +21,8 @@ export const userService = {
         await client.delete(`/users/${userId}`);
     },
 
-    uploadUsers: async (formData: FormData): Promise<any> => {
-        const response = await client.post<any>('/system/users/upload', formData, {
+    uploadUsers: async (formData: FormData): Promise<UserUploadResponse> => {
+        const response = await client.post<UserUploadResponse>('/system/users/upload', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -30,8 +30,8 @@ export const userService = {
         return response.data;
     },
 
-    syncUsersFromEntra: async (): Promise<any> => {
-        const response = await client.post<any>('/users/sync-entra');
+    syncUsersFromEntra: async (): Promise<EntraSyncResponse> => {
+        const response = await client.post<EntraSyncResponse>('/users/sync-entra');
         return response.data;
     }
 };

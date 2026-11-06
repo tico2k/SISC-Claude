@@ -1,5 +1,8 @@
 import { client } from './client';
-import { Case, Submission } from '../types';
+import { Case, Submission, CaseStats, DailyStat, WeeklyReport, PaginatedCases } from '../types';
+
+/** 쿼리 파라미터 (값이 있는 것만 담는다) */
+type QueryParams = Record<string, string | number>;
 
 export const caseService = {
     getCases: async (
@@ -14,7 +17,7 @@ export const caseService = {
         order?: string | null,
         search?: string | null
     ): Promise<Case[]> => {
-        const params: any = { skip, limit };
+        const params: QueryParams = { skip, limit };
         if (case_status) params.case_status = case_status;
         if (priority) params.priority = priority;
         if (case_type) params.case_type = case_type;
@@ -24,7 +27,7 @@ export const caseService = {
         if (sort_by) params.sort_by = sort_by;
         if (order) params.order = order;
 
-        const response = await client.get<any>('/cases', { params });
+        const response = await client.get<PaginatedCases>('/cases', { params });
         // 임시 하위 호환성 유지: 아직 Dashboard가 list를 기대하므로 items만 반환
         return response.data.items || [];
     },
@@ -40,8 +43,8 @@ export const caseService = {
         sort_by?: string | null,
         order?: string | null,
         search?: string | null
-    ): Promise<{ items: Case[], total: number, page: number, size: number, pages: number }> => {
-        const params: any = { skip, limit };
+    ): Promise<PaginatedCases> => {
+        const params: QueryParams = { skip, limit };
         if (case_status) params.case_status = case_status;
         if (priority) params.priority = priority;
         if (case_type) params.case_type = case_type;
@@ -53,7 +56,7 @@ export const caseService = {
 
         console.log("getCasesPaginated params:", params);
 
-        const response = await client.get<any>('/cases', { params });
+        const response = await client.get<PaginatedCases>('/cases', { params });
         return response.data;
     },
 
@@ -63,15 +66,15 @@ export const caseService = {
         case_status?: string | null,
         priority?: string | null,
         case_type?: string | null
-    ): Promise<any> => {
-        const params: any = {};
+    ): Promise<CaseStats> => {
+        const params: QueryParams = {};
         if (start_date) params.start_date = start_date;
         if (end_date) params.end_date = end_date;
         if (case_status) params.case_status = case_status;
         if (priority) params.priority = priority;
         if (case_type) params.case_type = case_type;
 
-        const response = await client.get<any>('/cases/stats', { params });
+        const response = await client.get<CaseStats>('/cases/stats', { params });
         return response.data;
     },
 
@@ -80,8 +83,8 @@ export const caseService = {
         return response.data; // Note: Ensure backend supports get by ID if implemented, otherwise filter from list
     },
 
-    getDailyStats: async (days: number = 14): Promise<any[]> => {
-        const response = await client.get<any[]>('/cases/daily-stats', {
+    getDailyStats: async (days: number = 14): Promise<DailyStat[]> => {
+        const response = await client.get<DailyStat[]>('/cases/daily-stats', {
             params: { days }
         });
         return response.data;
@@ -160,8 +163,8 @@ export const caseService = {
         return response.data;
     },
 
-    getWeeklyReports: async (limit: number = 5): Promise<any[]> => {
-        const response = await client.get(`/cases/weekly-reports?limit=${limit}`);
+    getWeeklyReports: async (limit: number = 5): Promise<WeeklyReport[]> => {
+        const response = await client.get<WeeklyReport[]>(`/cases/weekly-reports?limit=${limit}`);
         return response.data;
     }
 };
