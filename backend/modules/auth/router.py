@@ -14,6 +14,7 @@ from ...core.dependencies import (
 from ...core.exceptions import AuthenticationException, NotFoundException, ValidationException
 from ...core.logging_config import get_logger
 from ..integrations import services as integration_services
+from ..users import services as user_services
 from sqlalchemy import func
 from datetime import datetime, timezone
 
@@ -57,7 +58,8 @@ def register(
         user_name=user.user_name,
         company=user.company,
         department=user.department,
-        role=user.role
+        role=user.role,
+        manager_id=user_services.validate_manager(db, user.manager_id),
     )
     db.add(db_user)
     

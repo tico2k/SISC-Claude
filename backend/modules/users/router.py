@@ -49,7 +49,8 @@ def create_user(
             hashed_password=hashed_password,
             company=user.company,
             department=user.department,
-            role=user.role
+            role=user.role,
+            manager_id=services.validate_manager(db, user.manager_id),
         )
         db.add(new_user)
         db.flush()
@@ -94,6 +95,14 @@ def update_user(
         logger.warning(f"존재하지 않는 사용자 수정 시도: User ID {user_id}")
         raise NotFoundException("사용자를 찾을 수 없습니다")
     
+    is_system_admin = current_user.role == models.UserRole.SYSTEM_ADMIN
+    # manager_id를 보내지 않으면 기존 부서장 유지
+    manager_changed = "manager_id" in user_update.model_fields_set and user_update.manager_id != db_user.manager_id
+    # 본인 수정 시 역할·부서장은 바꿀 수 없음 (권한 상승 방지)
+    if not is_system_admin and (user_update.role != db_user.role or manager_changed):
+        logger.warning(f"권한 없는 역할/부서장 변경 시도: {current_user.user_email}")
+        raise AuthorizationException("역할과 부서장은 시스템 관리자만 변경할 수 있습니다")
+
     try:
         original_email = db_user.user_email
         
@@ -103,6 +112,8 @@ def update_user(
         db_user.company = user_update.company
         db_user.department = user_update.department
         db_user.role = user_update.role
+        if manager_changed:
+            db_user.manager_id = services.validate_manager(db, user_update.manager_id, user_id)
 
         # 비밀번호 변경 시
         if user_update.password:

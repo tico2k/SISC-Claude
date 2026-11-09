@@ -90,3 +90,39 @@ def add_audit_log(db: Session, actor: models.User, action: str, request: Optiona
     """SystemAuditLog 추가 (commit은 호출자 트랜잭션에서 수행)"""
     ip = request.client.host if request is not None and request.client else "Unknown"
     db.add(models.SystemAuditLog(actor_id=actor.user_id, action=action, ip_address=ip))
+
+
+# --- 심의 참고: 같은 직원의 다른 케이스 이력 ---
+
+HISTORY_RECENT_LIMIT = 20
+
+
+def employee_history(db: Session, case: models.ClarificationCase) -> dict:
+    """현재 케이스를 제외한 같은 직원의 케이스 요약 (반복 위반 판단용)"""
+    if not case.related_employee_id:
+        return {"employee_id": None, "employee_name": None, "total": 0, "rejected": 0,
+                "disciplinary": 0, "by_status": {}, "by_result": {}, "recent": []}
+
+    others = db.query(models.ClarificationCase).filter(
+        models.ClarificationCase.related_employee_id == case.related_employee_id,
+        models.ClarificationCase.case_id != case.case_id,
+    ).order_by(models.ClarificationCase.created_at.desc()).all()
+
+    by_status: dict[str, int] = {}
+    by_result: dict[str, int] = {}
+    for c in others:
+        by_status[_label(c.case_status)] = by_status.get(_label(c.case_status), 0) + 1
+        if c.case_result:
+            by_result[_label(c.case_result)] = by_result.get(_label(c.case_result), 0) + 1
+
+    employee = case.related_employee
+    return {
+        "employee_id": case.related_employee_id,
+        "employee_name": employee.user_name if employee else None,
+        "total": len(others),
+        "rejected": by_status.get(_label(S.REJECT), 0),
+        "disciplinary": by_result.get(_label(R.DISCIPLINARY_ACTION), 0),
+        "by_status": by_status,
+        "by_result": by_result,
+        "recent": others[:HISTORY_RECENT_LIMIT],
+    }

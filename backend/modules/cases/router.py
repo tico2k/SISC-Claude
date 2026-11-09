@@ -77,28 +77,18 @@ def create_case(
         logger.error(f"케이스 생성 실패: {str(e)}", exc_info=True)
         raise DatabaseException("케이스 생성 중 오류가 발생했습니다")
 
-@router.get("/cases", response_model=schemas.PaginatedCaseResponse)
-def get_cases(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100000),
-    case_status: Optional[str] = Query(None),
-    priority: Optional[str] = Query(None),
-    case_type: Optional[str] = Query(None),
-    start_date: Optional[str] = Query(None),
-    end_date: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
-    sort_by: Optional[str] = Query(None),
-    order: Optional[str] = Query("desc"),
-    current_user: models.User = Depends(dependencies.get_current_user),
-    db: Session = Depends(get_db)
+ADMIN_ROLES = (models.UserRole.SECURITY_ADMIN, models.UserRole.SYSTEM_ADMIN, models.UserRole.AUDIT_TEAM)
+
+
+def _filtered_case_query(
+    db: Session, current_user: models.User, case_status: Optional[str], priority: Optional[str],
+    case_type: Optional[str], start_date: Optional[str], end_date: Optional[str], search: Optional[str],
+    overdue: Optional[bool] = None,
 ):
-    """케이스 목록 조회 (서버사이드 페이징 및 필터링)"""
-    logger.info(f"케이스 목록 조회: {current_user.user_email} (역할: {current_user.role})")
-    
-    # 1. 개수 조회를 위한 기본 쿼리 (JOIN/로딩 옵션 제외)
+    """목록·내보내기 공용 필터 (일반 사용자는 본인 케이스 중 미확인·종결 제외)"""
     base_query = db.query(models.ClarificationCase)
 
-    if current_user.role not in [models.UserRole.SECURITY_ADMIN, models.UserRole.SYSTEM_ADMIN, models.UserRole.AUDIT_TEAM]:
+    if current_user.role not in ADMIN_ROLES:
         # 일반 사용자는 본인에게 요청된 건만 조회 가능 (미확인 건은 관리자 스크리닝 전, 종결 건은 오탐 자체종결이므로 비노출)
         base_query = base_query.filter(
             models.ClarificationCase.related_employee_id == current_user.user_id,
@@ -115,6 +105,12 @@ def get_cases(
         base_query = base_query.filter(models.ClarificationCase.created_at >= datetime.combine(datetime.strptime(start_date, "%Y-%m-%d"), datetime.min.time()))
     if end_date:
         base_query = base_query.filter(models.ClarificationCase.created_at <= datetime.combine(datetime.strptime(end_date, "%Y-%m-%d"), datetime.max.time()))
+    if overdue:
+        # 기한 초과: 요청 상태에서 기한이 지난 건 (models.ClarificationCase.is_overdue와 같은 기준)
+        base_query = base_query.filter(
+            models.ClarificationCase.case_status == models.CaseStatus.REQUEST,
+            models.ClarificationCase.due_date < datetime.now(),
+        )
     
     if search:
         search_term = f"%{search}%"
@@ -126,6 +122,30 @@ def get_cases(
                 models.ClarificationCase.incident_num.cast(String).ilike(search_term)
             )
         )
+    return base_query
+
+
+@router.get("/cases", response_model=schemas.PaginatedCaseResponse)
+def get_cases(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100000),
+    case_status: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
+    case_type: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    overdue: Optional[bool] = Query(None, description="true: 기한 초과 건만"),
+    sort_by: Optional[str] = Query(None),
+    order: Optional[str] = Query("desc"),
+    current_user: models.User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """케이스 목록 조회 (서버사이드 페이징 및 필터링)"""
+    logger.info(f"케이스 목록 조회: {current_user.user_email} (역할: {current_user.role})")
+    
+    # 1. 개수 조회를 위한 기본 쿼리 (JOIN/로딩 옵션 제외)
+    base_query = _filtered_case_query(db, current_user, case_status, priority, case_type, start_date, end_date, search, overdue)
 
     logger.debug(f"Query filters - status: {case_status}, priority: {priority}, type: {case_type}, search: {search}")
 
@@ -241,6 +261,10 @@ def get_case_stats(
 
     # Calculate overall stats
     total = query.count()
+    overdue_count = query.filter(
+        models.ClarificationCase.case_status == models.CaseStatus.REQUEST,
+        models.ClarificationCase.due_date < datetime.now(),
+    ).count()
     
     # Status stats
     status_counts = query.with_entities(
@@ -280,6 +304,7 @@ def get_case_stats(
 
     return {
         "total": total,
+        "overdue": overdue_count,
         "status": {
             "unclassified": status_dict.get(models.CaseStatus.UNCLASSIFIED.value, 0),
             "requested": status_dict.get(models.CaseStatus.REQUEST.value, 0),
@@ -367,9 +392,102 @@ def get_weekly_reports(
         
     return result
 
+CASE_EXPORT_LIMIT = 50000
+
+
+@router.get("/cases/export")
+def export_cases(
+    request: Request,
+    case_status: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
+    case_type: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    overdue: Optional[bool] = Query(None),
+    current_user: models.User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """케이스 목록 CSV 내보내기 (관리자·감사팀, 목록과 같은 필터). 내보내기 행위는 감사로그에 기록"""
+    if current_user.role not in ADMIN_ROLES:
+        raise AuthorizationException("케이스를 내보낼 권한이 없습니다")
+    from ...utils.csv_export import csv_response
+
+    query = _filtered_case_query(db, current_user, case_status, priority, case_type, start_date, end_date, search, overdue)
+    cases = query.options(joinedload(models.ClarificationCase.related_employee)) \
+        .order_by(models.ClarificationCase.created_at.desc()).limit(CASE_EXPORT_LIMIT).all()
+
+    case_services.add_audit_log(
+        db, current_user,
+        f"CASE_EXPORTED: {len(cases)} rows (status={case_status or '-'}, type={case_type or '-'}, overdue={bool(overdue)}, "
+        f"from={start_date or '-'}, to={end_date or '-'})",
+        request,
+    )
+    db.commit()
+
+    headers = ["케이스번호", "탐지번호", "규칙", "유형", "우선순위", "상태", "결과", "직원 이메일", "직원 이름", "부서",
+               "생성일", "기한", "기한초과", "최종처리일", "증거보존", "파기일"]
+    rows = []
+    for c in cases:
+        emp = c.related_employee
+        rows.append([
+            c.case_id, c.incident_num, c.rule_title, c.case_type, c.priority, c.case_status, c.case_result,
+            emp.user_email if emp else "", emp.user_name if emp else "", emp.department if emp else "",
+            c.created_at, c.due_date, c.is_overdue, c.final_review_date, c.legal_hold, c.anonymized_at,
+        ])
+    return csv_response("cases", headers, rows)
+
+
+def _get_case_or_404(db: Session, case_id: int) -> models.ClarificationCase:
+    case = db.get(models.ClarificationCase, case_id)
+    if not case:
+        raise NotFoundException("케이스를 찾을 수 없습니다")
+    return case
+
+
+@router.get("/cases/{case_id}/employee-history", response_model=schemas.EmployeeHistoryResponse)
+def get_employee_history(
+    case_id: int,
+    current_user: models.User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """심의 참고용: 같은 직원의 다른 케이스 이력·반복 위반 요약 (관리자·감사팀)"""
+    if current_user.role not in ADMIN_ROLES:
+        raise AuthorizationException("직원 이력을 조회할 권한이 없습니다")
+    return case_services.employee_history(db, _get_case_or_404(db, case_id))
+
+
+@router.post("/cases/{case_id}/legal-hold", response_model=schemas.CaseResponse)
+def set_legal_hold(
+    case_id: int,
+    data: schemas.LegalHoldRequest,
+    request: Request,
+    current_user: models.User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """증거 보존 지정/해제. 지정된 케이스는 보존기간이 지나도 파기(익명화)하지 않는다"""
+    if current_user.role not in ADMIN_ROLES:
+        raise AuthorizationException("증거 보존을 지정할 권한이 없습니다")
+    case = _get_case_or_404(db, case_id)
+    if case.anonymized_at:
+        raise ValidationException("이미 파기(익명화)된 케이스입니다")
+    if data.hold and not (data.reason or "").strip():
+        raise ValidationException("증거 보존 사유를 입력하세요")
+
+    case.legal_hold = data.hold
+    case.legal_hold_reason = data.reason.strip() if data.hold and data.reason else None
+    action = "LEGAL_HOLD_SET" if data.hold else "LEGAL_HOLD_RELEASED"
+    case_services.add_audit_log(db, current_user, f"{action}: Case {case_id}", request)
+    db.commit()
+    db.refresh(case)
+    logger.info(f"증거 보존 {'지정' if data.hold else '해제'}: Case {case_id} by {current_user.user_email}")
+    return case
+
+
 @router.get("/cases/{case_id}", response_model=schemas.CaseResponse)
 def get_case(
     case_id: int,
+    request: Request,
     current_user: models.User = Depends(dependencies.get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -381,8 +499,23 @@ def get_case(
     if not case:
         logger.warning(f"존재하지 않는 케이스 조회 시도: Case ID {case_id}")
         raise NotFoundException("케이스를 찾을 수 없습니다")
-    
-    # 리뷰 정보 추가 (승인/반려된 경우)
+
+    # 권한 확인: 관리자이거나 본인에게 요청된 케이스 (미확인 및 종결 건은 일반 사용자 접근 차단)
+    if current_user.role not in ADMIN_ROLES:
+        if case.related_employee_id != current_user.user_id or case.case_status in [models.CaseStatus.UNCLASSIFIED, models.CaseStatus.CLOSE]:
+            logger.warning(
+                f"권한 없는 케이스 조회: User {current_user.user_email}, Case ID {case_id}, "
+                f"Owner ID {case.related_employee_id}, Status: {case.case_status}"
+            )
+            raise AuthorizationException("이 케이스를 조회할 권한이 없습니다")
+
+    # 본인 외(관리자·감사팀)의 상세 열람은 감사로그에 기록
+    # (아래에서 화면 표시용 값을 케이스 객체에 얹기 전에 커밋해, 표시용 값이 저장되지 않게 한다)
+    if case.related_employee_id != current_user.user_id:
+        case_services.add_audit_log(db, current_user, f"CASE_VIEWED: Case {case_id}", request)
+        db.commit()
+
+    # 리뷰 정보 추가 (승인/반려된 경우, 응답 표시용)
     if case.case_status in [models.CaseStatus.APPROVE, models.CaseStatus.REJECT]:
         latest_review = db.query(models.ReviewHistory)\
             .filter(models.ReviewHistory.case_id == case_id)\
@@ -400,15 +533,6 @@ def get_case(
         locked_user = db.query(models.User).filter(models.User.user_id == case.locked_by_id).first()
         if locked_user:
             case.locked_by_name = locked_user.user_name
-
-    # 권한 확인: 관리자이거나 본인에게 요청된 케이스 (미확인 및 종결 건은 일반 사용자 접근 차단)
-    if current_user.role not in [models.UserRole.SECURITY_ADMIN, models.UserRole.SYSTEM_ADMIN, models.UserRole.AUDIT_TEAM]:
-        if case.related_employee_id != current_user.user_id or case.case_status in [models.CaseStatus.UNCLASSIFIED, models.CaseStatus.CLOSE]:
-            logger.warning(
-                f"권한 없는 케이스 조회: User {current_user.user_email}, Case ID {case_id}, "
-                f"Owner ID {case.related_employee_id}, Status: {case.case_status}"
-            )
-            raise AuthorizationException("이 케이스를 조회할 권한이 없습니다")
 
     logger.info(f"케이스 조회: Case ID {case_id}, User: {current_user.user_email}")
     return case
@@ -519,7 +643,7 @@ async def request_clarification(
                 
                 try:
                     # 파일 검증 및 저장
-                    original_filename, safe_filename, file_size = await validate_and_save_file(
+                    original_filename, safe_filename, file_size, file_hash = await validate_and_save_file(
                         file=file,
                         upload_dir=upload_dir
                     )
@@ -532,7 +656,8 @@ async def request_clarification(
                         original_filename=original_filename,
                         stored_filename=safe_filename,
                         file_path=str(file_location),
-                        file_size=file_size
+                        file_size=file_size,
+                        sha256=file_hash
                     )
                     db.add(attachment)
                     file_count += 1

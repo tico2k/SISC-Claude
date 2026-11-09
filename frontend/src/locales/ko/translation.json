@@ -38,7 +38,8 @@
     "stop": "정지",
     "locale": "ko-KR",
     "detectionDate": "탐지일",
-    "integrations": "외부 연동 설정"
+    "integrations": "외부 연동 설정",
+    "notifications": "알림 템플릿"
   },
   "dashboard": {
     "title": "대시보드",
@@ -96,7 +97,8 @@
       "reviewed": "검토 완료",
       "noData": "집계된 일일 통계 데이터가 없습니다.",
       "noDataSub": "자정 배치 작업 이후 또는 일일 통계 집계 실행 시 차트가 표시됩니다."
-    }
+    },
+    "overdue": "기한 초과"
   },
   "auth": {
     "ssoLogin": "Microsoft SSO 로그인",
@@ -205,7 +207,8 @@
         "closeRequirement": "종결 결과와 사유를 입력해주세요.",
         "closeSuccess": "케이스가 종결 처리되었습니다.",
         "closeFail": "종결 처리 실패",
-        "fileValidationFail": "파일 검증 실패"
+        "fileValidationFail": "파일 검증 실패",
+        "integrityFail": "파일 무결성 검증에 실패했습니다. 파일이 변경되었거나 손상되었을 수 있어 다운로드를 차단했습니다. 보안 관리자에게 문의하세요."
       },
       "modal": {
         "closeResult": "종결 결과",
@@ -245,6 +248,25 @@
         "finalHeading": "최종 절차"
       },
       "reviewCompleted": "검토 완료"
+    },
+    "badge": {
+      "overdue": "기한 초과",
+      "legalHold": "증거 보존",
+      "anonymized": "개인정보 파기됨"
+    },
+    "admin": {
+      "historyTitle": "이 직원의 다른 케이스",
+      "historyEmpty": "다른 케이스가 없습니다.",
+      "historyTotal": "전체",
+      "historyRejected": "반려",
+      "historyDisciplinary": "징계 요청",
+      "legalHoldTitle": "증거 보존",
+      "legalHoldDesc": "지정하면 보존기간이 지나도 개인정보를 파기하지 않습니다. 징계·소송 등으로 보존이 필요할 때 사용하세요.",
+      "legalHoldOn": "증거 보존 중",
+      "legalHoldRelease": "보존 해제",
+      "legalHoldSet": "증거 보존 지정",
+      "legalHoldReasonPlaceholder": "보존 사유 (필수)",
+      "anonymizedNotice": "보존기간이 지나 {{date}}에 개인정보가 파기(익명화)되었습니다."
     }
   },
   "submission": {
@@ -322,7 +344,10 @@
       "reRequest": "재요청",
       "insufficient": "소명 불충분",
       "disciplinary": "징계 요청",
-      "securityEducation": "보안 교육 필요"
+      "securityEducation": "보안 교육 필요",
+      "exportCsv": "CSV 내보내기",
+      "exportHint": "현재 필터 조건으로 전체 상태의 케이스를 내보냅니다 (Excel에서 열 수 있음)",
+      "exportFail": "내보내기에 실패했습니다."
     },
     "logs": {
       "title": "시스템 감사 로그",
@@ -338,7 +363,11 @@
         "ip": "IP 주소",
         "time": "발생 시각"
       },
-      "noLogs": "로그 데이터가 없습니다."
+      "noLogs": "로그 데이터가 없습니다.",
+      "exportCsv": "CSV 내보내기",
+      "exportFrom": "시작일",
+      "exportTo": "종료일",
+      "exportFail": "내보내기에 실패했습니다."
     },
     "jobs": {
       "title": "백그라운드 작업 관리",
@@ -367,7 +396,7 @@
       "unit": "건",
       "paginationInfo": "총 {{total}}건 중 {{start}} - {{end}} 표시",
       "descGenerateStats": "일일 케이스 및 통계 지표 자동 생성",
-      "descArchiveCases": "만료/종료된 소명 케이스 자동 아카이빙",
+      "descArchiveCases": "보존기간 경과 케이스 개인정보 파기(익명화)",
       "descSendReminders": "소명 기한 임박 안내 메일 일괄 발송",
       "descWeeklyReport": "주간 보안 소명 진행률 리포트 생성",
       "descSyncSiem": "SIEM 보안 로그 정기 수집 ({{id}})",
@@ -386,7 +415,8 @@
       "cronEditDesc": "'{{name}}' 작업의 Cron 표현식을 수정합니다.",
       "cronInput": "Cron 표현식",
       "cronHelp": "Cron 형식 도움말",
-      "filterTitle": "작업 필터 선택"
+      "filterTitle": "작업 필터 선택",
+      "descOverdue": "소명 기한 초과 알림 발송"
     },
     "permissions": {
       "title": "메뉴 접근 권한 설정",
@@ -409,7 +439,8 @@
         "env": "환경 변수 관리",
         "jobs": "백그라운드 작업",
         "permissions": "메뉴 권한 설정",
-        "integrations": "외부 연동 설정"
+        "integrations": "외부 연동 설정",
+        "notifications": "알림 템플릿"
       }
     },
     "user": {
@@ -441,7 +472,10 @@
         "department": "부서",
         "role": "권한 (Role)",
         "passwordChange": "비밀번호 변경 (선택사항)",
-        "passwordHint": "비워두면 기존 비밀번호가 유지됩니다."
+        "passwordHint": "비워두면 기존 비밀번호가 유지됩니다.",
+        "manager": "부서장 (참조 알림)",
+        "managerNone": "지정 안 함",
+        "managerHint": "소명 제출·기한 초과 시 참조 메일을 받습니다. 결재 권한은 없습니다."
       },
       "bulk": {
         "title": "사용자 일괄 업로드",
@@ -453,7 +487,8 @@
         "success": "성공",
         "skipped": "건너뜀 (중복)",
         "failed": "실패",
-        "uploading": "업로드 중..."
+        "uploading": "업로드 중...",
+        "columnsHint": "열: user_email, user_name, password, role, company, department, manager_email(선택, 부서장 이메일 — 기존 사용자 행에도 적용)"
       },
       "alerts": {
         "syncConfirm": "Microsoft Entra ID로부터 사용자 정보를 동기화하시겠습니까?",
@@ -664,6 +699,32 @@
       "guideSso": "SSO 로그인: 추가 API 권한 없음 (openid, profile, email)",
       "guideSync": "사용자 동기화: Microsoft Graph User.Read.All (애플리케이션 권한, 관리자 동의) + 클라이언트 시크릿",
       "guideMail": "Outlook 메일 발송: Microsoft Graph Mail.Send (애플리케이션 권한, 관리자 동의) + 클라이언트 시크릿 + .env의 MAIL_SENDER_TYPE=OUTLOOK"
+    },
+    "teams": {
+      "title": "Microsoft Teams 채널 알림",
+      "description": "보안팀 채널에 소명 제출, 기한 초과, SIEM 수집 결과를 알립니다.",
+      "enabled": "알림 사용",
+      "webhookUrl": "Workflows 웹훅 URL",
+      "urlSet": "설정됨 (변경할 때만 입력)",
+      "clearUrl": "저장된 URL 삭제",
+      "test": "테스트 메시지",
+      "guide1": "Teams 채널 → 워크플로 → \"웹후크 요청이 수신되면 채널에 게시\" 템플릿으로 만든 URL을 입력하세요.",
+      "guide2": "알림에는 케이스 번호·규칙·건수만 담고, 직원 이름과 소명 내용은 넣지 않습니다.",
+      "guide3": "URL에는 인증 서명이 들어 있어 암호화해 저장하며 화면에 다시 표시하지 않습니다."
     }
+  },
+  "notifications": {
+    "title": "알림 템플릿",
+    "description": "메일 제목과 본문을 수정합니다. 저장하면 이후 발송되는 메일에 바로 적용됩니다.",
+    "customized": "수정됨",
+    "subject": "제목",
+    "body": "본문 (HTML)",
+    "variables": "사용할 수 있는 변수",
+    "syntaxHint": "Jinja2 문법({{ 변수 }}, {% if %} 등)을 쓸 수 있습니다. 값은 자동으로 HTML 이스케이프됩니다. 보안상 허용되지 않는 구문은 저장할 수 없습니다.",
+    "preview": "미리보기",
+    "reset": "기본값으로",
+    "resetConfirm": "수정한 내용을 지우고 기본 템플릿으로 되돌릴까요?",
+    "saved": "템플릿을 저장했습니다.",
+    "resetDone": "기본 템플릿으로 되돌렸습니다."
   }
 }

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, Request, status, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
@@ -8,8 +8,8 @@ from pathlib import Path
 from ... import models, schemas
 from ...core import dependencies
 from ...core.database import get_db
-from ...utils.file_upload import validate_and_save_file
-from ...core.exceptions import AuthorizationException, NotFoundException, DatabaseException, FileUploadException
+from ...utils.file_upload import validate_and_save_file, compute_file_sha256
+from ...core.exceptions import AuthorizationException, NotFoundException, DatabaseException, FileUploadException, EvidenceIntegrityException
 from ...core.logging_config import get_logger
 from ..cases import services as case_services
 
@@ -26,13 +26,10 @@ async def create_submission(
     classification: str = Form(...),
     files: List[UploadFile] = File(None),
     current_user: models.User = Depends(dependencies.get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None
 ):
-    """소명 제출 및 파일 업로드"""
-    # ... (기존 코드와 동일)
-    # 61번 라인 부근 수정: submission_dir = UPLOAD_DIR / str(case_id) / str(new_submission.submission_id)
-    # resolve()된 UPLOAD_DIR를 사용하므로 안전함.
-    """소명 제출 및 파일 업로드"""
+    """소명 제출 및 파일 업로드 (첨부는 resolve()된 UPLOAD_DIR 하위에 저장)"""
     # 케이스 조회
     case = db.query(models.ClarificationCase).filter(models.ClarificationCase.case_id == case_id).first()
     if not case:
@@ -71,7 +68,7 @@ async def create_submission(
                 
                 try:
                     # 파일 검증 및 저장
-                    original_filename, safe_filename, file_size = await validate_and_save_file(
+                    original_filename, safe_filename, file_size, file_hash = await validate_and_save_file(
                         file=file,
                         upload_dir=submission_dir
                     )
@@ -84,7 +81,8 @@ async def create_submission(
                         original_filename=original_filename,
                         stored_filename=safe_filename,
                         file_path=str(file_path),
-                        file_size=file_size
+                        file_size=file_size,
+                        sha256=file_hash
                     )
                     db.add(attachment)
                     file_count += 1
@@ -109,6 +107,11 @@ async def create_submission(
             f"소명 제출 성공: Case ID {case_id}, Submission ID {new_submission.submission_id}, "
             f"Submitter: {current_user.user_email}, Files: {file_count}"
         )
+
+        # 부서장 참조 메일·보안팀 Teams 알림 (실패해도 제출은 유지)
+        if background_tasks:
+            from ...tasks.email_tasks import send_submission_notifications
+            background_tasks.add_task(send_submission_notifications, case_id, new_submission.submission_id)
         return new_submission
         
     except SQLAlchemyError as e:
@@ -119,10 +122,11 @@ async def create_submission(
 @router.get("/attachments/{file_id}")
 def download_attachment(
     file_id: int,
+    request: Request,
     current_user: models.User = Depends(dependencies.get_current_user),
     db: Session = Depends(get_db)
 ):
-    """첨부파일 다운로드"""
+    """첨부파일 다운로드 (저장 해시로 무결성 검증, 다운로드는 감사로그에 기록)"""
     # 첨부파일 조회
     attachment = db.query(models.ClarificationAttachment).filter(
         models.ClarificationAttachment.file_id == file_id
@@ -162,13 +166,30 @@ def download_attachment(
         logger.error(f"서버에서 파일을 찾을 수 없음: File ID {file_id}, Path: {target_path}")
         raise NotFoundException("서버에서 파일을 찾을 수 없습니다")
     
+    # 증거 무결성 검증: 업로드 시 저장한 해시와 비교 (해시가 없는 기존 파일은 '미검증'으로 제공)
+    current_hash = compute_file_sha256(target_path)
+    if attachment.sha256 and current_hash != attachment.sha256:
+        logger.error(f"첨부파일 무결성 검증 실패: File ID {file_id}, Case ID {case.case_id}")
+        case_services.add_audit_log(
+            db, current_user, f"ATTACHMENT_INTEGRITY_FAILED: Case {case.case_id} File {file_id}", request
+        )
+        db.commit()
+        raise EvidenceIntegrityException()
+
+    integrity = "verified" if attachment.sha256 else "unverified"
+    case_services.add_audit_log(
+        db, current_user, f"ATTACHMENT_DOWNLOADED: Case {case.case_id} File {file_id} ({integrity})", request
+    )
+    db.commit()
+
     logger.info(
         f"파일 다운로드: File ID {file_id}, User: {current_user.user_email}, "
-        f"Filename: {attachment.original_filename}"
+        f"Filename: {attachment.original_filename}, Integrity: {integrity}"
     )
     
     return FileResponse(
         path=str(target_path),
         filename=attachment.original_filename,
-        media_type='application/octet-stream'
+        media_type='application/octet-stream',
+        headers={"X-Content-SHA256": current_hash, "X-Integrity": integrity},
     )

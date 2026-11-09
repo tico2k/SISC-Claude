@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { caseService } from '../services/case.service';
 import { Case } from '../types';
-import { FileText, Filter, Search, ArrowLeft, RotateCcw } from 'lucide-react';
+import { FileText, Filter, Search, ArrowLeft, RotateCcw, Clock, Download } from 'lucide-react';
 import CaseDetail from './CaseDetail';
 import DateRangeFilter from '../components/DateRangeFilter';
 
@@ -38,6 +38,9 @@ const AdminReview: React.FC = () => {
     });
     const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [searchTerm, setSearchTerm] = useState('');
+    // 기한 초과만 보기 (대시보드에서 ?overdue=1로 진입 가능)
+    const [overdueOnly, setOverdueOnly] = useState(() => searchParams.get('overdue') === '1');
+    const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
         if (selectedCaseId) {
@@ -132,6 +135,9 @@ const AdminReview: React.FC = () => {
     // 1. 전체 데이터 필터링 (상태 필터 제외)
     const filteredByOthers = React.useMemo(() => {
         return cases.filter(c => {
+            // 기한 초과 필터
+            if (overdueOnly && !c.is_overdue) return false;
+
             // Priority Filter
             if (priorityFilter !== 'all' && c.priority !== priorityFilter) return false;
 
@@ -165,7 +171,7 @@ const AdminReview: React.FC = () => {
 
             return true;
         });
-    }, [cases, priorityFilter, typeFilter, employeeFilter, startDate, endDate, searchTerm]);
+    }, [cases, priorityFilter, typeFilter, employeeFilter, startDate, endDate, searchTerm, overdueOnly]);
 
     // 2. 상태별 카운트 계산
     const statusCounts = React.useMemo(() => ({
@@ -174,6 +180,28 @@ const AdminReview: React.FC = () => {
         '요청': filteredByOthers.filter(c => c.case_status === '요청').length,
         '제출': filteredByOthers.filter(c => c.case_status === '제출').length,
     }), [filteredByOthers]);
+
+    const overdueCount = React.useMemo(() => cases.filter(c => c.is_overdue).length, [cases]);
+
+    // CSV 내보내기: 화면의 필터 조건을 서버에 그대로 전달 (상태는 하나만 선택된 경우에만 적용)
+    const handleExport = async () => {
+        setExporting(true);
+        try {
+            await caseService.exportCases({
+                case_status: selectedStatuses.length === 1 ? selectedStatuses[0] : null,
+                priority: priorityFilter !== 'all' ? priorityFilter : null,
+                case_type: typeFilter !== 'all' ? typeFilter : null,
+                start_date: startDate,
+                end_date: endDate,
+                search: searchTerm,
+                overdue: overdueOnly ? true : null,
+            });
+        } catch {
+            alert(t('system.review.exportFail'));
+        } finally {
+            setExporting(false);
+        }
+    };
 
     const toggleStatus = (status: string) => {
         setSelectedStatuses(prev =>
@@ -229,6 +257,15 @@ const AdminReview: React.FC = () => {
                     <h1 className="text-2xl font-bold text-slate-900">{t('system.review.title')}</h1>
                     <p className="text-slate-500 mt-1">{t('system.review.description')}</p>
                 </div>
+                <button
+                    onClick={handleExport}
+                    disabled={exporting}
+                    title={t('system.review.exportHint')}
+                    className="flex items-center px-4 py-2 border border-slate-300 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-50 text-sm font-medium"
+                >
+                    <Download className="w-4 h-4 mr-2" />
+                    {exporting ? t('common.loading') : t('system.review.exportCsv')}
+                </button>
             </div>
 
             {/* Dashboard Filters */}
@@ -238,6 +275,15 @@ const AdminReview: React.FC = () => {
                     <StatusButton status="미확인" label={t('cases.status.unconfirmed')} count={statusCounts['미확인']} colorClass="slate" />
                     <StatusButton status="요청" label={t('cases.status.requested')} count={statusCounts['요청']} colorClass="blue" />
                     <StatusButton status="제출" label={t('cases.status.submitted')} count={statusCounts['제출']} colorClass="purple" />
+                    <button
+                        onClick={() => setOverdueOnly(v => !v)}
+                        className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border transition-all cursor-pointer
+                            ${overdueOnly ? 'bg-red-100 border-red-400 ring-2 ring-red-400 ring-inset' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+                    >
+                        <Clock className={`w-4 h-4 ${overdueOnly ? 'text-red-700' : 'text-red-500'}`} />
+                        <span className={`text-sm font-medium ${overdueOnly ? 'text-red-800 font-bold' : 'text-slate-600'}`}>{t('cases.badge.overdue')}</span>
+                        <span className={`text-lg font-bold ${overdueOnly ? 'text-red-900' : 'text-slate-900'}`}>{overdueCount}</span>
+                    </button>
                     {selectedStatuses.length > 0 && (
                         <button
                             onClick={clearStatusFilter}
@@ -355,6 +401,11 @@ const AdminReview: React.FC = () => {
                                                 {getPriorityLabel(cse.priority)}
                                             </span>
                                             <span className="text-xs text-slate-400">#{cse.incident_num || cse.case_id}</span>
+                                            {cse.is_overdue && (
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600 border border-red-200">
+                                                    <Clock className="w-3 h-3 mr-0.5" />{t('cases.badge.overdue')}
+                                                </span>
+                                            )}
                                         </div>
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium
                                             ${cse.case_status === '요청' ? 'bg-blue-100 text-blue-800' :

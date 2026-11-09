@@ -34,8 +34,11 @@ def run_around_tests(monkeypatch):
     # 테스트 중 실제 메일 발송 및 운영 DB(SessionLocal) 접근 차단
     from backend.core.config import settings
     from backend.tasks import email_tasks
+    from backend.core import database as core_db
     monkeypatch.setattr(settings, "ENABLE_EMAIL_NOTIFICATIONS", False)
     monkeypatch.setattr(email_tasks, "SessionLocal", TestingSessionLocal)
+    # 메일 템플릿 조회·Teams 설정 조회 등 core_db.SessionLocal을 쓰는 코드도 테스트 DB로
+    monkeypatch.setattr(core_db, "SessionLocal", TestingSessionLocal)
 
     Base.metadata.create_all(bind=engine)
     # 초기 시스템 관리자 계정 생성 (테스트용)
@@ -820,3 +823,335 @@ def test_siem_sync_fails_without_field_mapping(monkeypatch):
 
     result = siem_tasks.sync_siem_logs(siem_id, is_manual=True)
     assert result["status"] == "error" and "필드 매핑" in result["message"]
+
+
+# --- 1차: 기한 초과 · 증거 무결성 · 보존/파기 ---
+
+def _set_manager(employee_key, manager_key, wf):
+    db = TestingSessionLocal()
+    emp = db.get(models.User, wf["ids"][employee_key])
+    emp.manager_id = wf["ids"][manager_key]
+    db.commit()
+    db.close()
+
+
+def _make_overdue_case(owner_id) -> int:
+    cid = _make_case(owner_id, models.CaseStatus.REQUEST)
+    db = TestingSessionLocal()
+    db.get(models.ClarificationCase, cid).due_date = datetime(2020, 1, 1)
+    db.commit()
+    db.close()
+    return cid
+
+
+def test_overdue_flag_filter_and_stats(wf):
+    overdue_id = _make_overdue_case(wf["ids"]["owner"])
+    _make_case(wf["ids"]["owner"], models.CaseStatus.REQUEST)  # 기한 2099년
+    assert client.get(f"/cases/{overdue_id}", headers=wf["h"]["owner"]).json()["is_overdue"] is True
+
+    res = client.get("/cases", params={"overdue": True}, headers=wf["h"]["admin"]).json()
+    assert [c["case_id"] for c in res["items"]] == [overdue_id]
+    assert client.get("/cases/stats", headers=wf["h"]["admin"]).json()["overdue"] == 1
+
+
+def test_overdue_job_notifies_employee_manager_admins_once(wf, fake_provider, monkeypatch):
+    from backend.tasks import batch_tasks
+    from backend.modules.integrations import services as integ
+    monkeypatch.setattr(batch_tasks, "SessionLocal", TestingSessionLocal)
+    teams = []
+    monkeypatch.setattr(integ, "send_teams_message", lambda **kw: teams.append(kw) or True)
+    _set_manager("owner", "other", wf)
+    cid = _make_overdue_case(wf["ids"]["owner"])
+
+    assert batch_tasks.notify_overdue_cases()["overdue_notified"] == 1
+    recipients = sorted(m["to"] for m in fake_provider.sent)
+    assert recipients == ["admin2@wf.com", "admin@wf.com", "other@wf.com", "owner@wf.com"]
+    assert any("기한 초과" in m["subject"] and f"#{cid}" in m["subject"] for m in fake_provider.sent)
+    assert len(teams) == 1
+
+    # 같은 케이스는 다시 알리지 않음, 상태는 그대로 '요청'
+    fake_provider.sent.clear()
+    assert batch_tasks.notify_overdue_cases()["overdue_notified"] == 0
+    assert fake_provider.sent == []
+    assert _case_status(cid) == models.CaseStatus.REQUEST
+
+
+def _submit_with_file(case_id, headers, content=b"evidence-bytes"):
+    return client.post(
+        "/submissions",
+        data={"case_id": case_id, "content": "사유", "classification": "업무"},
+        files=[("files", ("proof.txt", content, "text/plain"))],
+        headers=headers,
+    )
+
+
+def _audit_actions():
+    db = TestingSessionLocal()
+    try:
+        return [a.action for a in db.query(models.SystemAuditLog).all()]
+    finally:
+        db.close()
+
+
+def test_attachment_hash_verified_and_tamper_detected(wf, tmp_path, monkeypatch):
+    import hashlib
+    upload_dir = (tmp_path / "uploads").resolve()
+    monkeypatch.setattr(submissions_router, "UPLOAD_DIR", upload_dir)
+    cid = _make_case(wf["ids"]["owner"], models.CaseStatus.REQUEST)
+    assert _submit_with_file(cid, wf["h"]["owner"]).status_code == 201
+
+    att = client.get(f"/cases/{cid}", headers=wf["h"]["admin"]).json()["submissions"][0]["attachments"][0]
+    assert att["sha256"] == hashlib.sha256(b"evidence-bytes").hexdigest()
+
+    res = client.get(f"/attachments/{att['file_id']}", headers=wf["h"]["admin"])
+    assert res.status_code == 200 and res.headers["X-Integrity"] == "verified"
+    assert any(a.startswith(f"ATTACHMENT_DOWNLOADED: Case {cid}") for a in _audit_actions())
+
+    # 저장된 파일을 바꾸면 다운로드 거부 + 감사로그
+    stored = next(upload_dir.rglob("*.txt"))
+    stored.write_bytes(b"tampered")
+    res = client.get(f"/attachments/{att['file_id']}", headers=wf["h"]["admin"])
+    assert res.status_code == 409 and b"tampered" not in res.content
+    assert any(a.startswith("ATTACHMENT_INTEGRITY_FAILED") for a in _audit_actions())
+
+
+def test_legacy_attachment_without_hash_is_unverified(tmp_path, monkeypatch):
+    upload_dir = (tmp_path / "uploads").resolve()
+    (upload_dir / "1").mkdir(parents=True)
+    target = upload_dir / "1" / "evidence.txt"
+    target.write_text("data")
+    monkeypatch.setattr(submissions_router, "UPLOAD_DIR", upload_dir)
+    file_id = _create_case_with_attachment(str(target))
+    res = client.get(f"/attachments/{file_id}", headers=_sysadmin_headers())
+    assert res.status_code == 200 and res.headers["X-Integrity"] == "unverified"
+
+
+def test_case_view_by_admin_is_audited_but_not_owner(wf):
+    cid = _make_case(wf["ids"]["owner"], models.CaseStatus.REQUEST)
+    client.get(f"/cases/{cid}", headers=wf["h"]["owner"])
+    assert not any(a.startswith("CASE_VIEWED") for a in _audit_actions())
+    client.get(f"/cases/{cid}", headers=wf["h"]["admin"])
+    assert f"CASE_VIEWED: Case {cid}" in _audit_actions()
+
+
+def test_legal_hold_requires_reason_and_admin(wf):
+    cid = _make_case(wf["ids"]["owner"], models.CaseStatus.APPROVE, models.CaseResult.JUSTIFIED)
+    assert client.post(f"/cases/{cid}/legal-hold", json={"hold": True}, headers=wf["h"]["admin"]).status_code == 422
+    assert client.post(f"/cases/{cid}/legal-hold", json={"hold": True, "reason": "x"}, headers=wf["h"]["owner"]).status_code == 403
+    res = client.post(f"/cases/{cid}/legal-hold", json={"hold": True, "reason": "징계 진행 중"}, headers=wf["h"]["admin"])
+    assert res.status_code == 200 and res.json()["legal_hold"] is True
+    assert f"LEGAL_HOLD_SET: Case {cid}" in _audit_actions()
+
+
+def test_retention_anonymizes_expired_cases_except_legal_hold(wf, tmp_path, monkeypatch):
+    from backend.core.config import settings
+    from backend.tasks import batch_tasks
+    upload_dir = (tmp_path / "uploads").resolve()
+    monkeypatch.setattr(submissions_router, "UPLOAD_DIR", upload_dir)
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_dir))
+    monkeypatch.setattr(batch_tasks, "SessionLocal", TestingSessionLocal)
+
+    expired = _make_case(wf["ids"]["owner"], models.CaseStatus.REQUEST)
+    assert _submit_with_file(expired, wf["h"]["owner"]).status_code == 201
+    held = _make_case(wf["ids"]["owner"], models.CaseStatus.APPROVE, models.CaseResult.JUSTIFIED)
+    recent = _make_case(wf["ids"]["owner"], models.CaseStatus.APPROVE, models.CaseResult.JUSTIFIED)
+    db = TestingSessionLocal()
+    old = datetime(2020, 1, 1)
+    for cid, when in ((expired, old), (held, old), (recent, datetime.now())):
+        c = db.get(models.ClarificationCase, cid)
+        c.case_status, c.case_result, c.final_review_date = models.CaseStatus.APPROVE, models.CaseResult.JUSTIFIED, when
+    db.get(models.ClarificationCase, held).legal_hold = True
+    db.commit()
+    db.close()
+    assert any(upload_dir.rglob("*.txt"))
+
+    result = batch_tasks.archive_old_cases()
+    assert result == {"anonymized_count": 1, "deleted_files": 1}
+    assert not any(upload_dir.rglob("*.txt"))
+
+    db = TestingSessionLocal()
+    try:
+        c = db.get(models.ClarificationCase, expired)
+        assert c.anonymized_at and c.related_employee_id is None and "파기" in c.summary
+        assert c.case_result == models.CaseResult.JUSTIFIED            # 통계용 값은 유지
+        sub = db.query(models.ClarificationSubmission).filter_by(case_id=expired).one()
+        assert "파기" in sub.content and sub.submitter_id is None
+        assert db.query(models.ClarificationAttachment).count() == 0
+        assert db.get(models.ClarificationCase, held).anonymized_at is None
+        assert db.get(models.ClarificationCase, recent).anonymized_at is None
+    finally:
+        db.close()
+    assert f"CASE_ANONYMIZED: Case {expired}" in " ".join(_audit_actions())
+
+    # 다시 실행해도 같은 케이스를 또 처리하지 않음
+    assert batch_tasks.archive_old_cases()["anonymized_count"] == 0
+
+
+# --- 2차: 부서장 참조 · 직원 이력 · 내보내기 ---
+
+def test_submission_sends_cc_to_manager_without_content(wf, fake_provider):
+    _set_manager("owner", "other", wf)
+    cid = _make_case(wf["ids"]["owner"], models.CaseStatus.REQUEST)
+    res = client.post("/submissions", data={"case_id": cid, "content": "개인적인 비밀 사유", "classification": "업무"},
+                      headers=wf["h"]["owner"])
+    assert res.status_code == 201
+    assert [m["to"] for m in fake_provider.sent] == ["other@wf.com"]
+    assert "참조" in fake_provider.sent[0]["subject"]
+    assert "개인적인 비밀 사유" not in fake_provider.sent[0]["content"]
+
+
+def test_manager_assignment_rules(wf):
+    sys_h = _sysadmin_headers()
+    owner_id, other_id = wf["ids"]["owner"], wf["ids"]["other"]
+    base = {"user_email": "owner@wf.com", "user_name": "owner", "role": "일반"}
+    res = client.put(f"/users/{owner_id}", json={**base, "manager_id": other_id}, headers=sys_h)
+    assert res.status_code == 200 and res.json()["manager_id"] == other_id
+    assert client.put(f"/users/{owner_id}", json={**base, "manager_id": owner_id}, headers=sys_h).status_code == 422
+    # manager_id를 보내지 않으면 유지
+    assert client.put(f"/users/{owner_id}", json=base, headers=sys_h).json()["manager_id"] == other_id
+
+
+def test_user_cannot_escalate_own_role_or_change_manager(wf):
+    owner_id = wf["ids"]["owner"]
+    base = {"user_email": "owner@wf.com", "user_name": "owner"}
+    res = client.put(f"/users/{owner_id}", json={**base, "role": "시스템관리자"}, headers=wf["h"]["owner"])
+    assert res.status_code == 403
+    res = client.put(f"/users/{owner_id}", json={**base, "role": "일반", "manager_id": wf["ids"]["other"]}, headers=wf["h"]["owner"])
+    assert res.status_code == 403
+    db = TestingSessionLocal()
+    try:
+        assert db.get(models.User, owner_id).role == models.UserRole.USER
+    finally:
+        db.close()
+
+
+def test_entra_sync_links_managers(monkeypatch):
+    from backend.modules.users import services as user_services
+    monkeypatch.setattr(user_services.entra_service, "get_all_users", lambda entra: [
+        {"userPrincipalName": "boss@corp.com", "displayName": "Boss"},
+        {"userPrincipalName": "staff@corp.com", "displayName": "Staff", "manager": {"userPrincipalName": "boss@corp.com"}},
+    ])
+    db = TestingSessionLocal()
+    try:
+        result = user_services.sync_users_from_entra(db)
+        assert result["created"] == 2 and result["managers_linked"] == 1
+        staff = db.query(models.User).filter_by(user_email="staff@corp.com").one()
+        boss = db.query(models.User).filter_by(user_email="boss@corp.com").one()
+        assert staff.manager_id == boss.user_id
+    finally:
+        db.close()
+
+
+def test_employee_history_summarizes_other_cases(wf):
+    owner = wf["ids"]["owner"]
+    current = _make_case(owner, models.CaseStatus.SUBMIT)
+    _make_case(owner, models.CaseStatus.REJECT, models.CaseResult.DISCIPLINARY_ACTION)
+    _make_case(owner, models.CaseStatus.REJECT, models.CaseResult.INSUFFICIENT)
+    _make_case(owner, models.CaseStatus.APPROVE, models.CaseResult.JUSTIFIED)
+    _make_case(wf["ids"]["other"], models.CaseStatus.REJECT, models.CaseResult.INSUFFICIENT)  # 다른 직원
+
+    res = client.get(f"/cases/{current}/employee-history", headers=wf["h"]["admin"])
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 3 and data["rejected"] == 2 and data["disciplinary"] == 1
+    assert current not in [c["case_id"] for c in data["recent"]]
+    assert client.get(f"/cases/{current}/employee-history", headers=wf["h"]["owner"]).status_code == 403
+
+
+def test_case_export_csv_escapes_formulas_and_is_audited(wf):
+    import csv, io
+    db = TestingSessionLocal()
+    db.add(models.ClarificationCase(rule_title="=HYPERLINK(\"http://evil\")", case_type=models.CaseType.INFO_LEAK,
+                                    related_employee_id=wf["ids"]["owner"], due_date=datetime(2099, 1, 1),
+                                    case_status=models.CaseStatus.REQUEST))
+    db.commit()
+    db.close()
+
+    assert client.get("/cases/export", headers=wf["h"]["owner"]).status_code == 403
+    res = client.get("/cases/export", headers=wf["h"]["admin"])
+    assert res.status_code == 200 and res.headers["content-type"].startswith("text/csv")
+    assert res.text.startswith("﻿")
+    rows = list(csv.reader(io.StringIO(res.text.lstrip("﻿"))))
+    assert rows[0][0] == "케이스번호" and len(rows) == 2
+    assert rows[1][2].startswith("'=")
+    assert any(a.startswith("CASE_EXPORTED: 1 rows") for a in _audit_actions())
+
+
+def test_audit_log_export(wf):
+    res = client.get("/audit-logs/export", params={"start_date": "2020-01-01"}, headers=wf["h"]["admin"])
+    assert res.status_code == 200 and "행위" in res.text
+    assert client.get("/audit-logs/export", headers=wf["h"]["owner"]).status_code == 403
+    assert client.get("/audit-logs/export", params={"start_date": "bad"}, headers=wf["h"]["admin"]).status_code == 422
+    assert any(a.startswith("AUDIT_LOG_EXPORTED") for a in _audit_actions())
+
+
+# --- 3차: 알림 템플릿 편집 · Teams 웹훅 ---
+
+def test_template_list_and_custom_subject_used(wf, fake_provider):
+    from backend.tasks import email_tasks
+    res = client.get("/notifications/templates", headers=wf["h"]["admin"])
+    assert res.status_code == 200
+    keys = {t["template_key"] for t in res.json()}
+    assert {"case_created.html", "overdue_notice.html", "submission_cc.html"} <= keys
+    assert client.get("/notifications/templates", headers=wf["h"]["owner"]).status_code == 403
+
+    res = client.put("/notifications/templates/case_created.html",
+                     json={"subject": "맞춤 제목 #{{ case_id }}", "body_html": "<p>{{ employee_name }} / {{ app_url }}/cases/{{ case_id }}</p>"},
+                     headers=wf["h"]["admin"])
+    assert res.status_code == 200 and res.json()["is_customized"] is True
+
+    cid = _make_case(wf["ids"]["owner"], models.CaseStatus.UNCLASSIFIED)
+    email_tasks.send_case_created_email(cid)
+    assert fake_provider.sent[-1]["subject"] == f"맞춤 제목 #{cid}"
+    assert "<p>owner /" in fake_provider.sent[-1]["content"]
+
+    # 초기화하면 기본 템플릿으로
+    assert client.delete("/notifications/templates/case_created.html", headers=wf["h"]["admin"]).json()["is_customized"] is False
+    email_tasks.send_case_created_email(cid)
+    assert "새로운 소명 케이스" in fake_provider.sent[-1]["subject"]
+
+
+@pytest.mark.parametrize("body", [
+    "{{ ''.__class__.__mro__[1].__subclasses__() }}",   # 샌드박스 위반 (템플릿 주입)
+    "{% if %}",                                          # 문법 오류
+])
+def test_template_rejects_unsafe_or_invalid(wf, body):
+    res = client.put("/notifications/templates/case_created.html", json={"subject": "s", "body_html": body}, headers=wf["h"]["admin"])
+    assert res.status_code == 422
+
+
+def test_template_preview_escapes_html(wf):
+    res = client.post("/notifications/templates/case_created.html/preview",
+                      json={"subject": "제목 {{ case_id }}", "body_html": "<b>{{ rule_title }}</b>{{ '<script>' }}"},
+                      headers=wf["h"]["admin"])
+    assert res.status_code == 200
+    assert res.json()["subject"] == "제목 1024"
+    assert "&lt;script&gt;" in res.json()["body_html"]
+
+
+def test_teams_webhook_settings_and_message(wf, monkeypatch):
+    from backend.modules.integrations import services as integ
+    sys_h = _sysadmin_headers()
+    assert client.put("/integrations/teams", json={"is_enabled": True}, headers=sys_h).status_code == 422
+    assert client.put("/integrations/teams", json={"is_enabled": True, "webhook_url": "http://insecure"}, headers=sys_h).status_code == 422
+    assert client.put("/integrations/teams", json={"is_enabled": True}, headers=wf["h"]["admin"]).status_code == 403
+
+    url = "https://example.webhook.office.com/workflows/abc?sig=secret"
+    res = client.put("/integrations/teams", json={"is_enabled": True, "webhook_url": url}, headers=sys_h)
+    assert res.status_code == 200 and res.json()["webhook_url_set"] is True and "secret" not in res.text
+
+    posted = []
+
+    class _Resp:
+        status_code = 202
+
+    monkeypatch.setattr(integ.requests, "post", lambda u, json, timeout: posted.append((u, json)) or _Resp())
+    assert integ.send_teams_message(title="T", text="본문", facts=[("케이스", "#1")], link_url="https://sics/x") is True
+    assert posted[0][0] == url
+    card = posted[0][1]["attachments"][0]
+    assert card["contentType"] == "application/vnd.microsoft.card.adaptive"
+    assert card["content"]["body"][0]["text"] == "T"
+
+    # 끄면 보내지 않음
+    client.put("/integrations/teams", json={"is_enabled": False}, headers=sys_h)
+    assert integ.send_teams_message(title="T", text="x") is False and len(posted) == 1

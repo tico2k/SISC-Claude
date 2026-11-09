@@ -1,6 +1,7 @@
 import re
 from fastapi import APIRouter, Depends, status, Request, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from ... import models, schemas
 from ...core import dependencies
 from ...core.database import get_db
@@ -183,6 +184,13 @@ async def upload_users(
         "details": []
     }
 
+    # manager_email 열(선택): 부서장 지정. 이미 등록된 사용자 행에도 적용되어 부서장 일괄 지정에 쓸 수 있다
+    manager_links = [
+        (u.get("user_email"), u.get("manager_email").strip())
+        for u in users_to_create
+        if u.get("user_email") and isinstance(u.get("manager_email"), str) and u.get("manager_email").strip()
+    ]
+
     for user_data in users_to_create:
         try:
             # 필수 필드 매핑 및 검증
@@ -246,13 +254,30 @@ async def upload_users(
             stats["errors"] += 1
             stats["details"].append(f"Error creating user {user_data.get('user_email', 'Unknown')}: {str(e)}")
 
+    # 부서장 연결 (새로 만든 사용자도 찾을 수 있도록 flush 후 처리)
+    stats["managers_linked"] = 0
+    try:
+        db.flush()
+        for email, manager_email in manager_links:
+            employee = db.query(models.User).filter(models.User.user_email == email).first()
+            manager = db.query(models.User).filter(models.User.user_email == manager_email).first()
+            if not employee or not manager or employee.user_id == manager.user_id:
+                stats["details"].append(f"Manager not linked for {email}: {manager_email}")
+                continue
+            employee.manager_id = manager.user_id
+            stats["managers_linked"] += 1
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"부서장 연결 실패: {e}")
+        raise ValidationException("데이터베이스 저장 중 오류가 발생했습니다.")
+
     # 5. 커밋 및 감사 로그
     try:
         db.commit()
         
         audit_log = models.SystemAuditLog(
             actor_id=current_user.user_id,
-            action=f"BULK_USER_UPLOAD: Total {stats['total']}, Created {stats['created']}, Skipped {stats['skipped']}",
+            action=f"BULK_USER_UPLOAD: Total {stats['total']}, Created {stats['created']}, Skipped {stats['skipped']}, Managers {stats['managers_linked']}",
             ip_address=request.client.host if request.client else "Unknown"
         )
         db.add(audit_log)
@@ -299,6 +324,7 @@ ENV_METADATA = {
     "MAIL_SENDER_TYPE": {"category": "[6] 이메일 알림 설정", "description": "이메일 전송 방식 (SMTP 또는 OUTLOOK, OUTLOOK은 연동 설정에서 Entra 구성 필요)"},
     
     # [7] 애플리케이션 및 로깅
+    "CASE_RETENTION_DAYS": {"category": "[6-1] 보존기간", "description": "종결 후 개인정보 파기(익명화)까지의 보존기간 (일, 기본 1095)"},
     "APP_NAME": {"category": "[7] 애플리케이션 및 로깅", "description": "애플리케이션 명칭 (SICS)"},
     "APP_URL": {"category": "[7] 애플리케이션 및 로깅", "description": "메일 링크에 쓰는 프론트엔드 접속 주소"},
     "LOG_LEVEL": {"category": "[7] 애플리케이션 및 로깅", "description": "로그 기록 수준 (DEBUG, INFO, WARNING, ERROR)"},
@@ -599,6 +625,7 @@ def resume_job(
                 "generate_daily_statistics": batch_tasks.generate_daily_statistics,
                 "generate_weekly_report": batch_tasks.generate_weekly_report,
                 "archive_old_cases": batch_tasks.archive_old_cases,
+                "notify_overdue_cases": batch_tasks.notify_overdue_cases,
             }
             if job_id in system_funcs:
                 scheduler.add_job(

@@ -1,5 +1,6 @@
 import { client } from './client';
-import { Case, Submission, CaseStats, DailyStat, WeeklyReport, PaginatedCases } from '../types';
+import { Case, Submission, CaseStats, DailyStat, WeeklyReport, PaginatedCases, EmployeeHistory } from '../types';
+import { saveBlob } from '../utils/download';
 
 /** 쿼리 파라미터 (값이 있는 것만 담는다) */
 type QueryParams = Record<string, string | number>;
@@ -166,5 +167,28 @@ export const caseService = {
     getWeeklyReports: async (limit: number = 5): Promise<WeeklyReport[]> => {
         const response = await client.get<WeeklyReport[]>(`/cases/weekly-reports?limit=${limit}`);
         return response.data;
+    },
+
+    getOverdueCases: async (limit = 1000): Promise<Case[]> => {
+        const response = await client.get<PaginatedCases>('/cases', { params: { overdue: true, limit } });
+        return response.data.items || [];
+    },
+
+    getEmployeeHistory: async (caseId: number): Promise<EmployeeHistory> => {
+        const response = await client.get<EmployeeHistory>(`/cases/${caseId}/employee-history`);
+        return response.data;
+    },
+
+    setLegalHold: async (caseId: number, hold: boolean, reason?: string): Promise<Case> => {
+        const response = await client.post<Case>(`/cases/${caseId}/legal-hold`, { hold, reason });
+        return response.data;
+    },
+
+    /** 케이스 목록 CSV 내보내기 (값이 있는 필터만 전달) */
+    exportCases: async (filters: Record<string, string | boolean | null | undefined> = {}): Promise<void> => {
+        const params: Record<string, string | boolean> = {};
+        Object.entries(filters).forEach(([k, v]) => { if (v !== null && v !== undefined && v !== '') params[k] = v; });
+        const response = await client.get('/cases/export', { params, responseType: 'blob' });
+        saveBlob(response.data, response.headers['content-disposition'], 'cases.csv');
     }
 };

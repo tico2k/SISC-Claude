@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소명 기한 초과 현황</title>
+    <style>
+        body { font-family: 'Malgun Gothic', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #434343 0%, #000000 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border: 1px solid #e0e0e0; }
+        .footer { background: #333; color: #999; padding: 20px; text-align: center; font-size: 12px; border-radius: 0 0 10px 10px; }
+        .box { background: white; padding: 20px; border-left: 4px solid #c0392b; margin: 20px 0; }
+        .box div { margin: 8px 0; }
+        .label { color: #c0392b; font-weight: bold; }
+        .btn { display: inline-block; background: #c0392b; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #e0e0e0; padding: 8px; font-size: 13px; text-align: left; }
+        th { background: #f1f1f1; }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>📋 소명 기한 초과 {{ count }}건</h1>
+    </div>
+
+    <div class="content">
+        <p>보안팀 담당자님, 오늘 새로 기한이 지난 소명 요청 건입니다. 직원(및 지정된 부서장)에게는 개별 안내 메일을 보냈습니다.</p>
+
+        <table>
+            <tr><th>케이스</th><th>규칙</th><th>직원</th><th>기한</th><th>경과</th></tr>
+            {% for c in cases %}
+            <tr>
+                <td><a href="{{ app_url }}/reviews?caseId={{ c.case_id }}">#{{ c.case_id }}</a></td>
+                <td>{{ c.rule_title }}</td>
+                <td>{{ c.employee_name }}</td>
+                <td>{{ c.due_date }}</td>
+                <td>{{ c.overdue_days }}일</td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <p><small>이 이메일은 Fleit InsiderGuard 시스템에서 자동으로 발송되었습니다.</small></p>
+    </div>
+
+    <div class="footer">
+        <p>&copy; 2026 Fleit Lab. All rights reserved.</p>
+    </div>
+</body>
+
+</html>

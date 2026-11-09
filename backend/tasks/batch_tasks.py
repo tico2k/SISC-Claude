@@ -265,38 +265,111 @@ def generate_weekly_report(target_date: Optional[date] = None, is_manual: bool =
 
 def archive_old_cases(is_manual: bool = False):
     """
-    매일 새벽 2시 실행 - 만료된 케이스 정리
-    
-    종료 후 90일이 지난 케이스를 아카이빙
+    보존기간이 지난 종결 케이스의 개인정보 파기(익명화) — 기본 매일 02:00
+
+    기존 작업 ID(archive_old_cases)를 그대로 사용한다. 보존기간은 settings.CASE_RETENTION_DAYS,
+    증거 보존(legal hold) 지정 케이스는 제외 (backend/modules/cases/retention.py)
     """
+    from ..modules.cases import retention
+
     db = SessionLocal()
     job_id = "archive_old_cases"
-    job_name = "만료/종료 케이스 자동 아카이빙"
+    job_name = RETENTION_JOB_NAME
     execution_type = "MANUAL" if is_manual else "AUTO"
-    
+
     try:
-        archive_date = datetime.now() - timedelta(days=90)
-        logger.info(f"만료 케이스 정리 시작: {archive_date} 이전 케이스")
-        
-        # 종료 후 90일 지난 케이스 조회
-        old_cases = db.query(ClarificationCase).filter(
-            ClarificationCase.final_review_date < archive_date,
-            ClarificationCase.case_status.in_([CaseStatus.APPROVE, CaseStatus.REJECT, CaseStatus.CLOSE])
-        ).all()
-        
-        logger.info(f"아카이빙 대상 케이스: {len(old_cases)}건")
-        
-        # TODO: 실제 아카이빙 로직 구현 (파일로 저장, 별도 DB로 이동 등)
-        # 현재는 로깅만 수행
-        for case in old_cases:
-            logger.info(f"아카이빙: Case #{case.case_id}, 종료일: {case.final_review_date}")
-        
-        record_job_log(db, job_id, job_name, "SUCCESS", execution_type, len(old_cases), f"정상 처리 완료. ({len(old_cases)}건 처리)")
-        return {"archived_count": len(old_cases)}
-        
+        cases = retention.find_expired_cases(db)
+        logger.info(f"보존기간 경과 케이스 파기 시작: {len(cases)}건 (보존 {settings.CASE_RETENTION_DAYS}일)")
+        files = 0
+        for case in cases:
+            files += retention.anonymize_case(db, case)
+            db.commit()  # 건별 커밋: 중간에 실패해도 처리된 건은 유지
+
+        msg = f"정상 처리 완료. (익명화 {len(cases)}건, 첨부 삭제 {files}건)"
+        record_job_log(db, job_id, job_name, "SUCCESS", execution_type, len(cases), msg)
+        return {"anonymized_count": len(cases), "deleted_files": files}
+
     except Exception as e:
+        db.rollback()
         error_msg = str(e)
-        logger.error(f"만료 케이스 정리 실패: {error_msg}", exc_info=True)
+        logger.error(f"보존기간 경과 케이스 파기 실패: {error_msg}", exc_info=True)
+        record_job_log(db, job_id, job_name, "FAILED", execution_type, 0, f"실패: {error_msg}")
+        raise
+    finally:
+        db.close()
+
+
+RETENTION_JOB_NAME = "보존기간 경과 케이스 개인정보 파기(익명화)"
+
+
+def notify_overdue_cases(is_manual: bool = False):
+    """
+    소명 기한이 지난 '요청' 케이스 알림 — 기본 매일 09:30
+
+    상태는 바꾸지 않는다. 케이스마다 한 번만 알림(overdue_notified_at 기록):
+    직원·지정된 부서장에게 메일, 보안관리자에게 요약 메일, Teams 채널(설정 시)에 요약
+    """
+    from ..models import User, UserRole
+    from ..core.mail.services import send_template_mail
+    from ..modules.integrations.services import send_teams_message
+
+    db = SessionLocal()
+    job_id = "notify_overdue_cases"
+    job_name = "소명 기한 초과 알림 발송"
+    execution_type = "MANUAL" if is_manual else "AUTO"
+
+    try:
+        now = datetime.now()
+        cases = db.query(ClarificationCase).filter(
+            ClarificationCase.case_status == CaseStatus.REQUEST,
+            ClarificationCase.due_date < now,
+            ClarificationCase.overdue_notified_at.is_(None),
+        ).order_by(ClarificationCase.due_date.asc()).all()
+
+        digest = []
+        for case in cases:
+            employee = db.get(User, case.related_employee_id) if case.related_employee_id else None
+            overdue_days = max((now.date() - case.due_date.date()).days, 1)
+            common = dict(
+                case_id=case.case_id,
+                rule_title=case.rule_title or "제목 없음",
+                due_date=case.due_date.strftime("%Y-%m-%d"),
+                overdue_days=overdue_days,
+                case_url=f"{settings.frontend_url}/cases/{case.case_id}",
+                employee_name=employee.user_name if employee else "-",
+            )
+            if employee:
+                send_template_mail(to_email=employee.user_email, template_name="overdue_notice.html",
+                                   recipient_name=employee.user_name, is_manager=False, **common)
+                manager = db.get(User, employee.manager_id) if employee.manager_id else None
+                if manager:
+                    send_template_mail(to_email=manager.user_email, template_name="overdue_notice.html",
+                                       recipient_name=manager.user_name, is_manager=True, **common)
+            case.overdue_notified_at = now
+            digest.append({k: common[k] for k in ("case_id", "rule_title", "employee_name", "due_date", "overdue_days")})
+        db.commit()
+
+        if digest:
+            admins = db.query(User).filter(User.role == UserRole.SECURITY_ADMIN).all()
+            for admin in admins:
+                send_template_mail(to_email=admin.user_email, template_name="overdue_digest.html",
+                                   count=len(digest), cases=digest, app_url=settings.frontend_url)
+            send_teams_message(
+                title=f"소명 기한 초과 {len(digest)}건",
+                text="오늘 새로 소명 기한이 지난 케이스입니다. 직원에게 개별 안내 메일을 보냈습니다.",
+                facts=[(f"#{c['case_id']}", f"{c['rule_title']} ({c['overdue_days']}일 경과)") for c in digest[:10]],
+                link_url=f"{settings.frontend_url}/reviews",
+                db=db,
+            )
+
+        msg = f"정상 처리 완료. (기한 초과 {len(digest)}건 알림)"
+        record_job_log(db, job_id, job_name, "SUCCESS", execution_type, len(digest), msg)
+        return {"overdue_notified": len(digest)}
+
+    except Exception as e:
+        db.rollback()
+        error_msg = str(e)
+        logger.error(f"기한 초과 알림 실패: {error_msg}", exc_info=True)
         record_job_log(db, job_id, job_name, "FAILED", execution_type, 0, f"실패: {error_msg}")
         raise
     finally:

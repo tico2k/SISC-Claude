@@ -7,6 +7,7 @@ Entra ID와 Sentinel 같은 SIEM 연동은 조직 상황에 맞춰 **설치 후 
 |---|---|---|---|
 | Microsoft Entra ID (SSO·사용자 동기화·Outlook 메일) | `외부 연동 설정` (시스템관리자) | DB `integration_setting` (시크릿 암호화) | 저장 즉시 (재시작·재빌드 불필요) |
 | SIEM (Microsoft Sentinel 등) | `SIEM 연동` (보안관리자·시스템관리자) | DB `siem_configuration` (시크릿 암호화) | 저장 즉시 (수집 스케줄 자동 등록) |
+| Microsoft Teams 채널 알림 | `외부 연동 설정` (시스템관리자) | DB `integration_setting` (웹훅 URL 암호화) | 저장 즉시 |
 
 > 연동 정보(테넌트·클라이언트 ID, 시크릿, 워크스페이스 ID)는 `.env`나 프론트엔드 빌드 변수(`VITE_*`)에 넣지 않습니다.
 > 시크릿 암호화에는 `.env`의 `ENCRYPTION_KEY`가 필요합니다.
@@ -81,3 +82,26 @@ Entra ID와 Sentinel 같은 SIEM 연동은 조직 상황에 맞춰 **설치 후 
 4. 수집 주기(cron)와 활성 여부를 정하고 저장하면 스케줄러에 자동 등록됩니다
 
 > 필드 매핑은 SIEM·쿼리마다 다르므로 기본값이 없습니다. 매핑을 지정하지 않으면 수집 작업은 실패로 기록되고 케이스를 만들지 않습니다.
+
+---
+
+## 3. Microsoft Teams 채널 알림 (보안팀)
+
+보안팀 채널에 다음 알림을 보냅니다: 소명 제출(심의 대기), 소명 기한 초과 요약, SIEM 수집으로 새 케이스 생성.
+알림에는 케이스 번호·규칙·건수만 담고 **직원 이름과 소명 내용은 넣지 않습니다.** 직원 개인 알림은 기존처럼 메일로 보냅니다.
+
+### 3.1 Teams에서 웹훅 만들기
+
+1. 보안팀 채널 → `...` → **워크플로** → **"웹후크 요청이 수신되면 채널에 게시"** 템플릿 선택
+2. 게시할 팀·채널을 고르고 만들기 → 표시되는 **웹훅 URL** 복사
+
+> 기존 Office 365 커넥터(Incoming Webhook)는 Microsoft가 단계적으로 종료 중이므로 Workflows 웹훅을 사용합니다.
+> 메시지는 Adaptive Card 형식(`type: message`, `attachments[].contentType = application/vnd.microsoft.card.adaptive`)으로 보냅니다.
+> 조직의 Teams 정책에 따라 템플릿 이름이나 허용 여부가 다를 수 있으니, 연결 테스트로 실제 표시를 확인하세요 (확인 필요).
+
+### 3.2 SICS에서 설정
+
+1. 시스템관리자 → **외부 연동 설정** → **Microsoft Teams 채널 알림**
+2. 웹훅 URL 입력(https만 허용) → **알림 사용** 체크 → **저장** → **테스트 메시지**로 확인
+
+URL에는 인증 서명이 들어 있어 암호화해 저장하고 화면에 다시 표시하지 않습니다.

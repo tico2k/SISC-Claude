@@ -133,6 +133,17 @@ def sync_siem_logs(config_id: int, is_manual: bool = False):
                 db.commit() 
                 total_created += 1
             
+            if total_created:
+                from ..modules.integrations.services import send_teams_message
+                from ..core.config import settings
+                send_teams_message(
+                    title=f"SIEM 수집: 새 케이스 {total_created}건",
+                    text=f"{config.name}에서 새 탐지 건이 케이스로 등록되어 초기 검토를 기다리고 있습니다.",
+                    facts=[("SIEM", config.name), ("조회", str(total_fetched)), ("생성", str(total_created))],
+                    link_url=f"{settings.frontend_url}/reviews",
+                    db=db,
+                )
+
             msg = f"[{execution_type} 실행] 정상 처리 완료. (조회: {total_fetched}건, 생성: {total_created}건)"
             history_record.status = "SUCCESS"
             history_record.error_message = msg

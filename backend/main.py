@@ -13,6 +13,7 @@ from .modules.users.router import router as users_router
 from .modules.audit.router import router as audit_router
 from .modules.system.router import router as system_router
 from .modules.integrations.router import router as integrations_router
+from .modules.notifications.router import router as notifications_router
 from . import models
 from .core import database
 from .core.exceptions import BaseAPIException
@@ -98,6 +99,7 @@ async def create_initial_menu_permissions():
             "/jobs": [models.UserRole.SYSTEM_ADMIN],
             "/permissions": [models.UserRole.SYSTEM_ADMIN],
             "/integrations": [models.UserRole.SYSTEM_ADMIN],
+            "/notifications": [models.UserRole.SYSTEM_ADMIN, models.UserRole.SECURITY_ADMIN],
         }
 
         roles = [models.UserRole.USER, models.UserRole.SECURITY_ADMIN, models.UserRole.AUDIT_TEAM, models.UserRole.SYSTEM_ADMIN]
@@ -282,6 +284,7 @@ app.include_router(users_router)
 app.include_router(audit_router)
 app.include_router(system_router)
 app.include_router(integrations_router)
+app.include_router(notifications_router)
 
 
 @app.get("/")

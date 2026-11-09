@@ -561,6 +561,24 @@
             }
           },
           {
+            "name": "overdue",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "true: 기한 초과 건만",
+              "title": "Overdue"
+            },
+            "description": "true: 기한 초과 건만"
+          },
+          {
             "name": "sort_by",
             "in": "query",
             "required": false,
@@ -848,6 +866,261 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/export": {
+      "get": {
+        "tags": [
+          "Clarification Cases"
+        ],
+        "summary": "Export Cases",
+        "description": "케이스 목록 CSV 내보내기 (관리자·감사팀, 목록과 같은 필터). 내보내기 행위는 감사로그에 기록",
+        "operationId": "export_cases_cases_export_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Case Status"
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Priority"
+            }
+          },
+          {
+            "name": "case_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Case Type"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start Date"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Date"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "overdue",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Overdue"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/employee-history": {
+      "get": {
+        "tags": [
+          "Clarification Cases"
+        ],
+        "summary": "Get Employee History",
+        "description": "심의 참고용: 같은 직원의 다른 케이스 이력·반복 위반 요약 (관리자·감사팀)",
+        "operationId": "get_employee_history_cases__case_id__employee_history_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeHistoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/legal-hold": {
+      "post": {
+        "tags": [
+          "Clarification Cases"
+        ],
+        "summary": "Set Legal Hold",
+        "description": "증거 보존 지정/해제. 지정된 케이스는 보존기간이 지나도 파기(익명화)하지 않는다",
+        "operationId": "set_legal_hold_cases__case_id__legal_hold_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LegalHoldRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
               }
             }
           },
@@ -1187,7 +1460,7 @@
           "Submissions"
         ],
         "summary": "Create Submission",
-        "description": "소명 제출 및 파일 업로드",
+        "description": "소명 제출 및 파일 업로드 (첨부는 resolve()된 UPLOAD_DIR 하위에 저장)",
         "operationId": "create_submission_submissions_post",
         "requestBody": {
           "content": {
@@ -1234,7 +1507,7 @@
           "Submissions"
         ],
         "summary": "Download Attachment",
-        "description": "첨부파일 다운로드",
+        "description": "첨부파일 다운로드 (저장 해시로 무결성 검증, 다운로드는 감사로그에 기록)",
         "operationId": "download_attachment_attachments__file_id__get",
         "security": [
           {
@@ -1891,6 +2164,79 @@
                   },
                   "title": "Response Get Audit Logs Audit Logs Get"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit-logs/export": {
+      "get": {
+        "tags": [
+          "System Audit"
+        ],
+        "summary": "Export Audit Logs",
+        "description": "감사로그 CSV 내보내기 (감사 제출용). 내보내기 자체도 감사로그에 남긴다",
+        "operationId": "export_audit_logs_audit_logs_export_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM-DD",
+              "title": "Start Date"
+            },
+            "description": "YYYY-MM-DD"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM-DD",
+              "title": "End Date"
+            },
+            "description": "YYYY-MM-DD"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -2581,6 +2927,296 @@
         ]
       }
     },
+    "/integrations/teams": {
+      "get": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "Get Teams Integration",
+        "description": "Teams 채널 웹훅 설정 조회 (URL은 설정 여부만 반환)",
+        "operationId": "get_teams_integration_integrations_teams_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamsIntegrationResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "Update Teams Integration",
+        "description": "Teams 채널 웹훅 설정 저장",
+        "operationId": "update_teams_integration_integrations_teams_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamsIntegrationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamsIntegrationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/integrations/teams/test": {
+      "post": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "Test Teams Integration",
+        "description": "저장된 웹훅으로 테스트 메시지 발송",
+        "operationId": "test_teams_integration_integrations_teams_test_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationTestResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/notifications/templates": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "List Templates",
+        "operationId": "list_templates_notifications_templates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationTemplateResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Templates Notifications Templates Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/notifications/templates/{template_key}": {
+      "put": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Update Template",
+        "operationId": "update_template_notifications_templates__template_key__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "template_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationTemplateUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationTemplateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Reset Template",
+        "description": "수정본을 지우고 기본 템플릿으로 되돌림",
+        "operationId": "reset_template_notifications_templates__template_key__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "template_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationTemplateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/templates/{template_key}/preview": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Preview Template",
+        "description": "샘플 값으로 렌더링한 결과 (저장하지 않음)",
+        "operationId": "preview_template_notifications_templates__template_key__preview_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "template_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationTemplateUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPreviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Read Root",
@@ -2638,6 +3274,17 @@
               }
             ],
             "title": "File Size"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
           },
           "uploaded_at": {
             "type": "string",
@@ -3243,6 +3890,39 @@
               }
             ],
             "title": "Locked By Name"
+          },
+          "is_overdue": {
+            "type": "boolean",
+            "title": "Is Overdue",
+            "default": false
+          },
+          "legal_hold": {
+            "type": "boolean",
+            "title": "Legal Hold",
+            "default": false
+          },
+          "legal_hold_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Hold Reason"
+          },
+          "anonymized_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anonymized At"
           }
         },
         "type": "object",
@@ -3289,6 +3969,124 @@
           "권한오남용"
         ],
         "title": "CaseType"
+      },
+      "EmployeeCaseSummary": {
+        "properties": {
+          "case_id": {
+            "type": "integer",
+            "title": "Case Id"
+          },
+          "rule_title": {
+            "type": "string",
+            "title": "Rule Title"
+          },
+          "case_type": {
+            "$ref": "#/components/schemas/CaseType"
+          },
+          "case_status": {
+            "$ref": "#/components/schemas/CaseStatus"
+          },
+          "case_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CasePriority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "case_id",
+          "rule_title",
+          "case_type",
+          "case_status",
+          "created_at"
+        ],
+        "title": "EmployeeCaseSummary"
+      },
+      "EmployeeHistoryResponse": {
+        "properties": {
+          "employee_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employee Id"
+          },
+          "employee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employee Name"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          },
+          "disciplinary": {
+            "type": "integer",
+            "title": "Disciplinary"
+          },
+          "by_status": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "By Status"
+          },
+          "by_result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "By Result"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/EmployeeCaseSummary"
+            },
+            "type": "array",
+            "title": "Recent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "rejected",
+          "disciplinary",
+          "by_status",
+          "by_result",
+          "recent"
+        ],
+        "title": "EmployeeHistoryResponse",
+        "description": "심의 참고용: 같은 직원의 다른 케이스 이력 (현재 케이스 제외)"
       },
       "EntraIntegrationResponse": {
         "properties": {
@@ -3591,6 +4389,30 @@
         ],
         "title": "JobResponse"
       },
+      "LegalHoldRequest": {
+        "properties": {
+          "hold": {
+            "type": "boolean",
+            "title": "Hold"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hold"
+        ],
+        "title": "LegalHoldRequest"
+      },
       "LoginHistoryResponse": {
         "properties": {
           "login_id": {
@@ -3658,6 +4480,100 @@
           "permission_id"
         ],
         "title": "MenuPermissionResponse"
+      },
+      "NotificationPreviewResponse": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body_html": {
+            "type": "string",
+            "title": "Body Html"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "body_html"
+        ],
+        "title": "NotificationPreviewResponse"
+      },
+      "NotificationTemplateResponse": {
+        "properties": {
+          "template_key": {
+            "type": "string",
+            "title": "Template Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "variables": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Variables"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body_html": {
+            "type": "string",
+            "title": "Body Html"
+          },
+          "is_customized": {
+            "type": "boolean",
+            "title": "Is Customized"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_key",
+          "name",
+          "description",
+          "variables",
+          "subject",
+          "body_html",
+          "is_customized"
+        ],
+        "title": "NotificationTemplateResponse"
+      },
+      "NotificationTemplateUpdate": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body_html": {
+            "type": "string",
+            "title": "Body Html"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "body_html"
+        ],
+        "title": "NotificationTemplateUpdate"
       },
       "PaginatedCaseResponse": {
         "properties": {
@@ -4678,6 +5594,58 @@
         ],
         "title": "SystemAuditLogResponse"
       },
+      "TeamsIntegrationResponse": {
+        "properties": {
+          "is_enabled": {
+            "type": "boolean",
+            "title": "Is Enabled"
+          },
+          "webhook_url_set": {
+            "type": "boolean",
+            "title": "Webhook Url Set"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "is_enabled",
+          "webhook_url_set"
+        ],
+        "title": "TeamsIntegrationResponse"
+      },
+      "TeamsIntegrationUpdate": {
+        "properties": {
+          "is_enabled": {
+            "type": "boolean",
+            "title": "Is Enabled",
+            "default": false
+          },
+          "webhook_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Url"
+          }
+        },
+        "type": "object",
+        "title": "TeamsIntegrationUpdate"
+      },
       "Token": {
         "properties": {
           "access_token": {
@@ -4730,6 +5698,17 @@
           },
           "role": {
             "$ref": "#/components/schemas/UserRole"
+          },
+          "manager_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manager Id"
           }
         },
         "type": "object",
@@ -4774,6 +5753,17 @@
           },
           "role": {
             "$ref": "#/components/schemas/UserRole"
+          },
+          "manager_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manager Id"
           },
           "password": {
             "type": "string",
@@ -4823,6 +5813,17 @@
           },
           "role": {
             "$ref": "#/components/schemas/UserRole"
+          },
+          "manager_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manager Id"
           },
           "user_id": {
             "type": "integer",
@@ -4900,6 +5901,17 @@
           },
           "role": {
             "$ref": "#/components/schemas/UserRole"
+          },
+          "manager_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manager Id"
           },
           "password": {
             "anyOf": [

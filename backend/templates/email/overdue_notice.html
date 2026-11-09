@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소명 기한 초과 안내</title>
+    <style>
+        body { font-family: 'Malgun Gothic', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #ff6a6a 0%, #c0392b 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border: 1px solid #e0e0e0; }
+        .footer { background: #333; color: #999; padding: 20px; text-align: center; font-size: 12px; border-radius: 0 0 10px 10px; }
+        .box { background: white; padding: 20px; border-left: 4px solid #c0392b; margin: 20px 0; }
+        .box div { margin: 8px 0; }
+        .label { color: #c0392b; font-weight: bold; }
+        .btn { display: inline-block; background: #c0392b; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #e0e0e0; padding: 8px; font-size: 13px; text-align: left; }
+        th { background: #f1f1f1; }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>⚠️ 소명 기한이 지났습니다</h1>
+    </div>
+
+    <div class="content">
+        <p>안녕하세요, <strong>{{ recipient_name }}</strong>님</p>
+        {% if is_manager %}
+        <p><strong>{{ employee_name }}</strong>님의 보안 소명 제출 기한이 지났습니다. 부서장 참조 안내이며, 소명 내용은 보안팀이 확인합니다.</p>
+        {% else %}
+        <p>아래 케이스의 소명 제출 기한이 <strong>{{ overdue_days }}일</strong> 지났습니다. 지금 바로 소명을 제출해 주시기 바랍니다.</p>
+        {% endif %}
+
+        <div class="box">
+            <div><span class="label">케이스 번호:</span> {{ case_id }}</div>
+            <div><span class="label">규칙 제목:</span> {{ rule_title }}</div>
+            <div><span class="label">기한:</span> {{ due_date }} ({{ overdue_days }}일 경과)</div>
+        </div>
+
+        {% if not is_manager %}
+        <p style="text-align: center;">
+            <a href="{{ case_url }}" class="btn">지금 소명 제출하기</a>
+        </p>
+        {% endif %}
+
+        <p><small>이 이메일은 Fleit InsiderGuard 시스템에서 자동으로 발송되었습니다.</small></p>
+    </div>
+
+    <div class="footer">
+        <p>&copy; 2026 Fleit Lab. All rights reserved.</p>
+    </div>
+</body>
+
+</html>

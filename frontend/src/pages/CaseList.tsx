@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { caseService } from '../services/case.service';
 import { Case } from '../types';
-import { FileText, Filter, Search, RotateCcw } from 'lucide-react';
+import { FileText, Filter, Search, RotateCcw, Clock } from 'lucide-react';
 import DateRangeFilter from '../components/DateRangeFilter';
 import CaseDetail from './CaseDetail';
 
@@ -279,6 +279,11 @@ const CaseList: React.FC = () => {
                                                 <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-500 rounded font-bold border border-indigo-100">
                                                     {getCaseTypeLabel(cse.case_type)}
                                                 </span>
+                                                {cse.is_overdue && (
+                                                    <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 bg-red-50 text-red-600 rounded font-bold border border-red-200">
+                                                        <Clock className="w-3 h-3 mr-0.5" />{t('cases.badge.overdue')}
+                                                    </span>
+                                                )}
                                             </div>
                                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusStyle(cse.case_status)}`}>
                                                 {getStatusLabel(cse.case_status)}

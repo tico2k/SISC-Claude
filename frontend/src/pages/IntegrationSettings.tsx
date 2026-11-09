@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2, Plug, Save, XCircle } from 'lucide-react';
 import { integrationService } from '../services/integration.service';
 import { EntraIntegration, EntraIntegrationUpdate, IntegrationTestResult } from '../types';
 import { getApiErrorBody, getErrorMessage } from '../utils/error';
+import TeamsSettingsCard from '../components/TeamsSettingsCard';
 
 interface FormState {
     is_enabled: boolean;
@@ -175,6 +176,8 @@ const IntegrationSettings: React.FC = () => {
                 </div>
                 <p className="text-xs text-slate-400 text-right">{t('integrations.testHint')}</p>
             </form>
+
+            <TeamsSettingsCard />
         </div>
     );
 };

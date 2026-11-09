@@ -248,6 +248,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cases/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Cases
+         * @description 케이스 목록 CSV 내보내기 (관리자·감사팀, 목록과 같은 필터). 내보내기 행위는 감사로그에 기록
+         */
+        get: operations["export_cases_cases_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cases/{case_id}/employee-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Employee History
+         * @description 심의 참고용: 같은 직원의 다른 케이스 이력·반복 위반 요약 (관리자·감사팀)
+         */
+        get: operations["get_employee_history_cases__case_id__employee_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cases/{case_id}/legal-hold": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Legal Hold
+         * @description 증거 보존 지정/해제. 지정된 케이스는 보존기간이 지나도 파기(익명화)하지 않는다
+         */
+        post: operations["set_legal_hold_cases__case_id__legal_hold_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cases/{case_id}": {
         parameters: {
             query?: never;
@@ -379,7 +439,7 @@ export interface paths {
         put?: never;
         /**
          * Create Submission
-         * @description 소명 제출 및 파일 업로드
+         * @description 소명 제출 및 파일 업로드 (첨부는 resolve()된 UPLOAD_DIR 하위에 저장)
          */
         post: operations["create_submission_submissions_post"];
         delete?: never;
@@ -397,7 +457,7 @@ export interface paths {
         };
         /**
          * Download Attachment
-         * @description 첨부파일 다운로드
+         * @description 첨부파일 다운로드 (저장 해시로 무결성 검증, 다운로드는 감사로그에 기록)
          */
         get: operations["download_attachment_attachments__file_id__get"];
         put?: never;
@@ -616,6 +676,26 @@ export interface paths {
          * @description 시스템 감사 로그 조회
          */
         get: operations["get_audit_logs_audit_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit-logs/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Audit Logs
+         * @description 감사로그 CSV 내보내기 (감사 제출용). 내보내기 자체도 감사로그에 남긴다
+         */
+        get: operations["export_audit_logs_audit_logs_export_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -939,6 +1019,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/integrations/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Teams Integration
+         * @description Teams 채널 웹훅 설정 조회 (URL은 설정 여부만 반환)
+         */
+        get: operations["get_teams_integration_integrations_teams_get"];
+        /**
+         * Update Teams Integration
+         * @description Teams 채널 웹훅 설정 저장
+         */
+        put: operations["update_teams_integration_integrations_teams_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/integrations/teams/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Teams Integration
+         * @description 저장된 웹훅으로 테스트 메시지 발송
+         */
+        post: operations["test_teams_integration_integrations_teams_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Templates */
+        get: operations["list_templates_notifications_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/templates/{template_key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Template */
+        put: operations["update_template_notifications_templates__template_key__put"];
+        post?: never;
+        /**
+         * Reset Template
+         * @description 수정본을 지우고 기본 템플릿으로 되돌림
+         */
+        delete: operations["reset_template_notifications_templates__template_key__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/templates/{template_key}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Template
+         * @description 샘플 값으로 렌더링한 결과 (저장하지 않음)
+         */
+        post: operations["preview_template_notifications_templates__template_key__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -991,6 +1173,8 @@ export interface components {
             original_filename: string;
             /** File Size */
             file_size?: number | null;
+            /** Sha256 */
+            sha256?: string | null;
             /**
              * Uploaded At
              * Format: date-time
@@ -1182,6 +1366,20 @@ export interface components {
             locked_at?: string | null;
             /** Locked By Name */
             locked_by_name?: string | null;
+            /**
+             * Is Overdue
+             * @default false
+             */
+            is_overdue: boolean;
+            /**
+             * Legal Hold
+             * @default false
+             */
+            legal_hold: boolean;
+            /** Legal Hold Reason */
+            legal_hold_reason?: string | null;
+            /** Anonymized At */
+            anonymized_at?: string | null;
         };
         /**
          * CaseResult
@@ -1198,6 +1396,48 @@ export interface components {
          * @enum {string}
          */
         CaseType: "정보유출" | "보안위반" | "시스템접근" | "권한오남용";
+        /** EmployeeCaseSummary */
+        EmployeeCaseSummary: {
+            /** Case Id */
+            case_id: number;
+            /** Rule Title */
+            rule_title: string;
+            case_type: components["schemas"]["CaseType"];
+            case_status: components["schemas"]["CaseStatus"];
+            case_result?: components["schemas"]["CaseResult"] | null;
+            priority?: components["schemas"]["CasePriority"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * EmployeeHistoryResponse
+         * @description 심의 참고용: 같은 직원의 다른 케이스 이력 (현재 케이스 제외)
+         */
+        EmployeeHistoryResponse: {
+            /** Employee Id */
+            employee_id?: number | null;
+            /** Employee Name */
+            employee_name?: string | null;
+            /** Total */
+            total: number;
+            /** Rejected */
+            rejected: number;
+            /** Disciplinary */
+            disciplinary: number;
+            /** By Status */
+            by_status: {
+                [key: string]: unknown;
+            };
+            /** By Result */
+            by_result: {
+                [key: string]: unknown;
+            };
+            /** Recent */
+            recent: components["schemas"]["EmployeeCaseSummary"][];
+        };
         /** EntraIntegrationResponse */
         EntraIntegrationResponse: {
             /** Is Enabled */
@@ -1302,6 +1542,13 @@ export interface components {
             /** Cron Expression */
             cron_expression?: string | null;
         };
+        /** LegalHoldRequest */
+        LegalHoldRequest: {
+            /** Hold */
+            hold: boolean;
+            /** Reason */
+            reason?: string | null;
+        };
         /** LoginHistoryResponse */
         LoginHistoryResponse: {
             /** Login Id */
@@ -1327,6 +1574,39 @@ export interface components {
             is_visible: boolean;
             /** Permission Id */
             permission_id: number;
+        };
+        /** NotificationPreviewResponse */
+        NotificationPreviewResponse: {
+            /** Subject */
+            subject: string;
+            /** Body Html */
+            body_html: string;
+        };
+        /** NotificationTemplateResponse */
+        NotificationTemplateResponse: {
+            /** Template Key */
+            template_key: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Variables */
+            variables: string[];
+            /** Subject */
+            subject: string;
+            /** Body Html */
+            body_html: string;
+            /** Is Customized */
+            is_customized: boolean;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** NotificationTemplateUpdate */
+        NotificationTemplateUpdate: {
+            /** Subject */
+            subject: string;
+            /** Body Html */
+            body_html: string;
         };
         /** PaginatedCaseResponse */
         PaginatedCaseResponse: {
@@ -1627,6 +1907,25 @@ export interface components {
             occurred_at: string;
             actor?: components["schemas"]["UserBase"] | null;
         };
+        /** TeamsIntegrationResponse */
+        TeamsIntegrationResponse: {
+            /** Is Enabled */
+            is_enabled: boolean;
+            /** Webhook Url Set */
+            webhook_url_set: boolean;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** TeamsIntegrationUpdate */
+        TeamsIntegrationUpdate: {
+            /**
+             * Is Enabled
+             * @default false
+             */
+            is_enabled: boolean;
+            /** Webhook Url */
+            webhook_url?: string | null;
+        };
         /** Token */
         Token: {
             /** Access Token */
@@ -1645,6 +1944,8 @@ export interface components {
             /** Department */
             department?: string | null;
             role: components["schemas"]["UserRole"];
+            /** Manager Id */
+            manager_id?: number | null;
         };
         /** UserCreate */
         UserCreate: {
@@ -1657,6 +1958,8 @@ export interface components {
             /** Department */
             department?: string | null;
             role: components["schemas"]["UserRole"];
+            /** Manager Id */
+            manager_id?: number | null;
             /** Password */
             password: string;
         };
@@ -1671,6 +1974,8 @@ export interface components {
             /** Department */
             department?: string | null;
             role: components["schemas"]["UserRole"];
+            /** Manager Id */
+            manager_id?: number | null;
             /** User Id */
             user_id: number;
             /** Idate */
@@ -1697,6 +2002,8 @@ export interface components {
             /** Department */
             department?: string | null;
             role: components["schemas"]["UserRole"];
+            /** Manager Id */
+            manager_id?: number | null;
             /** Password */
             password?: string | null;
         };
@@ -2001,6 +2308,8 @@ export interface operations {
                 start_date?: string | null;
                 end_date?: string | null;
                 search?: string | null;
+                /** @description true: 기한 초과 건만 */
+                overdue?: boolean | null;
                 sort_by?: string | null;
                 order?: string | null;
             };
@@ -2167,6 +2476,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_cases_cases_export_get: {
+        parameters: {
+            query?: {
+                case_status?: string | null;
+                priority?: string | null;
+                case_type?: string | null;
+                start_date?: string | null;
+                end_date?: string | null;
+                search?: string | null;
+                overdue?: boolean | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_employee_history_cases__case_id__employee_history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_legal_hold_cases__case_id__legal_hold_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LegalHoldRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2857,6 +3269,40 @@ export interface operations {
             };
         };
     };
+    export_audit_logs_audit_logs_export_get: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM-DD */
+                start_date?: string | null;
+                /** @description YYYY-MM-DD */
+                end_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     reset_database_system_reset_post: {
         parameters: {
             query?: never;
@@ -3306,6 +3752,200 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IntegrationTestResponse"];
+                };
+            };
+        };
+    };
+    get_teams_integration_integrations_teams_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamsIntegrationResponse"];
+                };
+            };
+        };
+    };
+    update_teams_integration_integrations_teams_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamsIntegrationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamsIntegrationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_teams_integration_integrations_teams_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationTestResponse"];
+                };
+            };
+        };
+    };
+    list_templates_notifications_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationTemplateResponse"][];
+                };
+            };
+        };
+    };
+    update_template_notifications_templates__template_key__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationTemplateUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationTemplateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_template_notifications_templates__template_key__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationTemplateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_template_notifications_templates__template_key__preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationTemplateUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

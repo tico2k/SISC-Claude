@@ -14,7 +14,8 @@ import {
     Settings,
     Key,
     ShieldCheck,
-    Plug
+    Plug,
+    Mail
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -61,6 +62,7 @@ const Layout: React.FC = () => {
         { name: t('common.backgroundJobs'), path: '/jobs', icon: LayoutDashboard },
         { name: t('common.menuPermissions'), path: '/permissions', icon: ShieldCheck },
         { name: t('common.integrations'), path: '/integrations', icon: Plug },
+        { name: t('common.notifications'), path: '/notifications', icon: Mail },
     ];
 
     return (

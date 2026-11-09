@@ -230,3 +230,138 @@ def verify_entra_id_token(id_token: str, entra: EntraConfig) -> dict:
         logger.warning("Entra ID 토큰 검증 실패: 테넌트 불일치")
         raise AuthenticationException("Entra ID 인증에 실패했습니다")
     return claims
+
+
+# --- Microsoft Teams 채널 웹훅 (보안팀 알림) ---
+
+TEAMS = "TEAMS"
+TEAMS_TIMEOUT_SECONDS = 10
+
+
+def _validate_webhook_url(url: str) -> None:
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.netloc or len(url) > 1000:
+        raise ValidationException("웹훅 URL은 https:// 로 시작하는 1000자 이하의 주소여야 합니다")
+
+
+def to_teams_response(db: Session) -> schemas.TeamsIntegrationResponse:
+    row = db.get(models.IntegrationSetting, TEAMS)
+    if not row:
+        return schemas.TeamsIntegrationResponse(is_enabled=False, webhook_url_set=False)
+    return schemas.TeamsIntegrationResponse(
+        is_enabled=bool(row.is_enabled), webhook_url_set=bool(row.webhook_url), updated_at=row.updated_at
+    )
+
+
+def update_teams_config(
+    db: Session, data: schemas.TeamsIntegrationUpdate, actor: models.User, ip_address: str
+) -> schemas.TeamsIntegrationResponse:
+    row = db.get(models.IntegrationSetting, TEAMS)
+    if not row:
+        row = models.IntegrationSetting(provider=TEAMS)
+        db.add(row)
+
+    url_action = "unchanged"
+    if data.webhook_url is not None and data.webhook_url != SECRET_MASK:
+        if data.webhook_url == "":
+            row.webhook_url = None
+            url_action = "cleared"
+        else:
+            url = data.webhook_url.strip()
+            _validate_webhook_url(url)
+            row.webhook_url = encrypt_secret(url)  # URL 자체에 서명이 들어 있어 시크릿으로 취급
+            url_action = "replaced"
+
+    if data.is_enabled and not row.webhook_url:
+        raise ValidationException("Teams 알림을 켜려면 웹훅 URL을 입력해야 합니다")
+
+    row.is_enabled = data.is_enabled
+    row.updated_by = actor.user_id
+    db.add(models.SystemAuditLog(
+        actor_id=actor.user_id,
+        action=f"INTEGRATION_TEAMS_UPDATED: enabled={data.is_enabled}, url={url_action}",
+        ip_address=ip_address,
+    ))
+    db.commit()
+    return to_teams_response(db)
+
+
+def _get_teams_webhook(db: Session) -> Optional[str]:
+    row = db.get(models.IntegrationSetting, TEAMS)
+    if not row or not row.is_enabled or not row.webhook_url:
+        return None
+    return decrypt_secret(row.webhook_url)
+
+
+def _adaptive_card(title: str, text: str, facts: list[tuple[str, str]], link_url: Optional[str]) -> dict:
+    """Teams Workflows 웹훅용 Adaptive Card 메시지 (형식은 Microsoft 문서 기준, 확인 필요 시 docs/INTEGRATION_GUIDE.md 참고)"""
+    body = [
+        {"type": "TextBlock", "text": title, "weight": "Bolder", "size": "Medium", "wrap": True},
+        {"type": "TextBlock", "text": text, "wrap": True},
+    ]
+    if facts:
+        body.append({"type": "FactSet", "facts": [{"title": k, "value": str(v)} for k, v in facts]})
+    card = {
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "type": "AdaptiveCard",
+        "version": "1.4",
+        "body": body,
+    }
+    if link_url:
+        card["actions"] = [{"type": "Action.OpenUrl", "title": "SICS에서 보기", "url": link_url}]
+    return {
+        "type": "message",
+        "attachments": [{"contentType": "application/vnd.microsoft.card.adaptive", "contentUrl": None, "content": card}],
+    }
+
+
+def _post_teams(url: str, payload: dict) -> tuple[bool, str]:
+    try:
+        response = requests.post(url, json=payload, timeout=TEAMS_TIMEOUT_SECONDS)
+    except requests.RequestException as e:
+        return False, f"Teams 웹훅 연결 실패: {type(e).__name__}"
+    if response.status_code >= 300:
+        return False, f"Teams 웹훅 응답 오류: HTTP {response.status_code}"
+    return True, "ok"
+
+
+def send_teams_message(
+    title: str, text: str, facts: Optional[list[tuple[str, str]]] = None,
+    link_url: Optional[str] = None, db: Optional[Session] = None,
+) -> bool:
+    """보안팀 Teams 채널에 알림. 설정이 없거나 꺼져 있으면 아무것도 하지 않고 False.
+    알림에는 케이스 번호·규칙 등 최소 정보만 넣고, 직원 이름·소명 내용은 넣지 않는다."""
+    from ...core import database as core_db
+
+    own_session = db is None
+    if own_session:
+        db = core_db.SessionLocal()
+    try:
+        url = _get_teams_webhook(db)
+        if not url:
+            return False
+        ok, message = _post_teams(url, _adaptive_card(title, text, facts or [], link_url))
+        if not ok:
+            logger.warning(f"Teams 알림 실패: {message}")
+        return ok
+    except Exception as e:
+        logger.warning(f"Teams 알림 실패: {type(e).__name__}: {e}")
+        return False
+    finally:
+        if own_session:
+            db.close()
+
+
+def check_teams_connection(db: Session) -> schemas.IntegrationTestResponse:
+    row = db.get(models.IntegrationSetting, TEAMS)
+    if not row or not row.webhook_url:
+        return schemas.IntegrationTestResponse(status="error", message="웹훅 URL을 먼저 저장하세요")
+    ok, message = _post_teams(
+        decrypt_secret(row.webhook_url),
+        _adaptive_card("SICS 연결 테스트", "Fleit InsiderGuard에서 보낸 테스트 메시지입니다.", [], None),
+    )
+    if ok:
+        return schemas.IntegrationTestResponse(status="success", message="Teams 채널로 테스트 메시지를 보냈습니다")
+    return schemas.IntegrationTestResponse(status="error", message=message)

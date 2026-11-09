@@ -10,6 +10,7 @@ class UserBase(BaseModel):
     company: Optional[str] = None
     department: Optional[str] = None
     role: UserRole
+    manager_id: Optional[int] = None  # 부서장(참조 알림 수신자)
 
 class UserCreate(UserBase):
     password: str
@@ -69,6 +70,34 @@ class EntraIntegrationResponse(BaseModel):
     mail_sender: Optional[str] = None
     updated_at: Optional[datetime] = None
 
+class TeamsIntegrationUpdate(BaseModel):
+    is_enabled: bool = False
+    # None 또는 '********': 기존 값 유지 / '': 삭제 / 그 외: 새 URL(https)로 교체
+    webhook_url: Optional[str] = None
+
+class TeamsIntegrationResponse(BaseModel):
+    is_enabled: bool
+    webhook_url_set: bool
+    updated_at: Optional[datetime] = None
+
+class NotificationTemplateResponse(BaseModel):
+    template_key: str
+    name: str
+    description: str
+    variables: List[str]
+    subject: str
+    body_html: str
+    is_customized: bool
+    updated_at: Optional[datetime] = None
+
+class NotificationTemplateUpdate(BaseModel):
+    subject: str
+    body_html: str
+
+class NotificationPreviewResponse(BaseModel):
+    subject: str
+    body_html: str
+
 class IntegrationTestResponse(BaseModel):
     status: str  # success / error
     message: str
@@ -78,6 +107,7 @@ class AttachmentResponse(BaseModel):
     file_id: int
     original_filename: str
     file_size: Optional[int] = None
+    sha256: Optional[str] = None  # 업로드 시점 해시 (없으면 무결성 미검증 파일)
     uploaded_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -115,6 +145,10 @@ class CaseResponse(CaseBase):
     locked_by_id: Optional[int] = None
     locked_at: Optional[datetime] = None
     locked_by_name: Optional[str] = None # For UI display
+    is_overdue: bool = False  # 소명 요청 상태에서 기한 경과
+    legal_hold: bool = False  # 증거 보존 지정 (보존기간 경과 후에도 파기 제외)
+    legal_hold_reason: Optional[str] = None
+    anonymized_at: Optional[datetime] = None  # 보존기간 경과로 개인정보 익명화된 시각
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -124,6 +158,32 @@ class PaginatedCaseResponse(BaseModel):
     page: int
     size: int
     pages: int
+
+class LegalHoldRequest(BaseModel):
+    hold: bool
+    reason: Optional[str] = None
+
+class EmployeeCaseSummary(BaseModel):
+    case_id: int
+    rule_title: str
+    case_type: CaseType
+    case_status: CaseStatus
+    case_result: Optional[CaseResult] = None
+    priority: Optional[CasePriority] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class EmployeeHistoryResponse(BaseModel):
+    """심의 참고용: 같은 직원의 다른 케이스 이력 (현재 케이스 제외)"""
+    employee_id: Optional[int] = None
+    employee_name: Optional[str] = None
+    total: int
+    rejected: int          # 반려 건수
+    disciplinary: int      # 징계 요청(감사 이관) 건수
+    by_status: dict
+    by_result: dict
+    recent: List[EmployeeCaseSummary]
 
 class CaseCloseRequest(BaseModel):
     case_result: CaseResult

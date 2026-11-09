@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, AlertTriangle, MinusCircle, CheckSquare, ShieldAlert, AlertCircle, Activity, UserCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { FileText, AlertTriangle, MinusCircle, CheckSquare, ShieldAlert, AlertCircle, Activity, UserCircle, Clock } from 'lucide-react';
 import { CaseStats, DashboardFilters } from '../../types';
 
 interface StatsCardsProps {
@@ -13,7 +15,10 @@ interface StatsCardsProps {
 
 const StatsCards: React.FC<StatsCardsProps> = ({ stats, filters, toggleFilter, clearFilters, activeFilterCount }) => {
     const { t } = useTranslation();
+    const { role } = useAuth();
     if (!stats) return null;
+    const isAdmin = role === '보안관리자' || role === '감사팀' || role === '시스템관리자';
+    const overdue = stats.overdue ?? 0;
 
     return (
         <>
@@ -30,6 +35,19 @@ const StatsCards: React.FC<StatsCardsProps> = ({ stats, filters, toggleFilter, c
                     </div>
                     <span className="text-2xl font-black text-slate-900 leading-none mt-2">{stats.total}</span>
                 </button>
+
+                {/* 기한 초과 (요청 상태에서 기한 경과) */}
+                <Link
+                    to={isAdmin ? '/reviews?overdue=1' : '/cases'}
+                    className={`w-full p-2.5 rounded-xl border transition-all text-left flex items-center justify-between
+                        ${overdue > 0 ? 'bg-red-50 border-red-200 hover:border-red-400' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                >
+                    <span className="flex items-center text-xs font-bold text-slate-500">
+                        <Clock className={`w-4 h-4 mr-1 ${overdue > 0 ? 'text-red-500' : 'text-slate-300'}`} />
+                        {t('dashboard.overdue')}
+                    </span>
+                    <span className={`text-xl font-black ${overdue > 0 ? 'text-red-600' : 'text-slate-800'}`}>{overdue}</span>
+                </Link>
 
                 {/* Priority Group */}
                 <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-2 flex-grow flex flex-col">

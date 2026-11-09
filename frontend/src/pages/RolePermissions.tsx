@@ -17,7 +17,8 @@ const ORDERED_MENU_PATHS = [
     "/env",
     "/jobs",
     "/permissions",
-    "/integrations"
+    "/integrations",
+    "/notifications"
 ];
 
 const RolePermissions: React.FC = () => {
@@ -85,7 +86,8 @@ const RolePermissions: React.FC = () => {
             "/env": t('system.permissions.menus.env'),
             "/jobs": t('system.permissions.menus.jobs'),
             "/permissions": t('system.permissions.menus.permissions'),
-            "/integrations": t('system.permissions.menus.integrations')
+            "/integrations": t('system.permissions.menus.integrations'),
+            "/notifications": t('system.permissions.menus.notifications')
         };
         return names[path] || path;
     };

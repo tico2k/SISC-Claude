@@ -125,3 +125,14 @@ class CaseStateException(BaseAPIException):
             detail=detail,
             error_code="CASE_STATE_CONFLICT"
         )
+
+
+class EvidenceIntegrityException(BaseAPIException):
+    """첨부파일(증거)의 저장 해시와 현재 파일 해시가 다름 (변조·손상 의심)"""
+
+    def __init__(self, detail: str = "파일 무결성 검증에 실패했습니다. 보안 관리자에게 문의하세요."):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail,
+            error_code="EVIDENCE_INTEGRITY_FAILED"
+        )

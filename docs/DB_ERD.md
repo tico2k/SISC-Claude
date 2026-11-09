@@ -60,6 +60,7 @@ erDiagram
         string department
         enum role "USER, SECURITY_ADMIN, AUDIT_TEAM, SYSTEM_ADMIN"
         datetime last_login "마지막 로그인 시간"
+        int manager_id FK "부서장 (users, 참조 알림 수신)"
         datetime idate "생성일"
         datetime udate "수정일"
     }
@@ -84,6 +85,10 @@ erDiagram
         text original_log_link "원본 로그 링크"
         int locked_by_id FK "현재 편집 중인 관리자 (Case Locking)"
         datetime locked_at "잠금 시작 시간 (Case Locking)"
+        datetime overdue_notified_at "기한 초과 알림 발송 시각"
+        boolean legal_hold "증거 보존 지정"
+        text legal_hold_reason "증거 보존 사유"
+        datetime anonymized_at "보존기간 경과 익명화 시각"
     }
 
     clarification_submission {
@@ -103,6 +108,7 @@ erDiagram
         string stored_filename "저장 파일명"
         text file_path "파일 경로"
         int file_size "파일 크기 (bytes)"
+        string sha256 "업로드 시점 SHA-256 (무결성 검증)"
         datetime uploaded_at "업로드 시간"
     }
 
@@ -151,6 +157,14 @@ erDiagram
         datetime updated_at "수정일"
     }
 
+    notification_template {
+        string template_key PK "템플릿 키 (예: case_created.html)"
+        string subject "제목 (Jinja2)"
+        text body_html "본문 HTML (Jinja2)"
+        int updated_by FK "마지막 수정자 (users)"
+        datetime updated_at "수정일"
+    }
+
     integration_setting {
         string provider PK "연동 종류 (ENTRA)"
         boolean is_enabled "사용 여부"
@@ -158,6 +172,7 @@ erDiagram
         string client_id "클라이언트 ID"
         string client_secret "클라이언트 시크릿 (Fernet 암호화 보관)"
         string mail_sender "Outlook 발송 사서함"
+        string webhook_url "Teams 웹훅 URL (provider=TEAMS, Fernet 암호화)"
         int updated_by FK "마지막 수정자 (users)"
         datetime updated_at "수정일"
     }
@@ -267,6 +282,13 @@ erDiagram
 - **IntegrationSetting**: 설치 후 관리자가 설정하는 외부 연동 정보입니다. 연동 종류(`provider`)마다 1행이며 현재는 `ENTRA`(SSO·사용자 동기화·Outlook 메일)만 사용합니다.
 - 행이 없거나 `is_enabled=false`이면 Entra 관련 기능은 꺼진 상태로 동작합니다. `.env`/프론트 빌드 변수에는 연동 정보를 두지 않습니다.
 - `client_secret`은 Fernet으로 암호화되어 저장되며 API 응답에는 설정 여부(`client_secret_set`)만 내려갑니다. 마이그레이션: `0003`.
+
+### 소명 기능 개선 (마이그레이션 0004)
+
+- **users.manager_id**: 부서장(자기 참조 FK, 삭제 시 NULL). 참조 메일 수신용이며 권한에는 영향 없음
+- **clarification_case**: `overdue_notified_at`(기한 초과 알림 1회 발송 기록), `legal_hold`·`legal_hold_reason`(증거 보존), `anonymized_at`(보존기간 경과 익명화 시각)
+- **clarification_attachment.sha256**: 업로드 시점 해시 (다운로드 시 무결성 검증, 기존 파일은 NULL)
+- **notification_template**: 관리자가 수정한 메일 템플릿 (행이 없으면 기본 파일 템플릿)
 
 ### Dynamic System Configuration (v1.4.0)
 
