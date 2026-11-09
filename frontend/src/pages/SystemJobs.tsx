@@ -223,6 +223,7 @@ export default function SystemJobs() {
                                         'archive_old_cases': t('system.jobs.descArchiveCases'),
                                         'send_deadline_reminders': t('system.jobs.descSendReminders'),
                                         'generate_weekly_report': t('system.jobs.descWeeklyReport'),
+                                        'notify_overdue_cases': t('system.jobs.descOverdue'),
                                     };
 
                                     let displayName = jobDescriptions[job.id] || job.name;

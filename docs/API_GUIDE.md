@@ -135,7 +135,29 @@ Fleit InsiderGuard SICS의 주요 API 엔드포인트와 사용법을 설명합�
 ### 2.6 이력 조회
 
 - **Endpoint**: `GET /cases/history`
-- **Response**: 모든 케이스의 전체 이력 반환
+- **Response**: 로그인한 사용자 본인의 승인된 케이스 목록
+
+### 2.7 기한 초과 (Overdue)
+
+- 케이스 응답의 `is_overdue`: `요청` 상태에서 기한이 지난 경우 `true` (상태는 바뀌지 않음)
+- 목록 필터: `GET /cases?overdue=true`, 통계: `GET /cases/stats` 응답의 `overdue`
+
+### 2.8 직원 이력 (심의 참고)
+
+- **Endpoint**: `GET /cases/{case_id}/employee-history` — 관리자·감사팀
+- **Response**: `{"employee_id", "employee_name", "total", "rejected", "disciplinary", "by_status", "by_result", "recent": [최근 20건]}` (현재 케이스 제외)
+
+### 2.9 증거 보존 (Legal Hold)
+
+- **Endpoint**: `POST /cases/{case_id}/legal-hold` — 관리자·감사팀
+- **Body**: `{"hold": true, "reason": "징계 진행 중"}` (지정 시 사유 필수, 해제 시 `{"hold": false}`)
+- 지정된 케이스는 보존기간이 지나도 파기(익명화)되지 않음. 응답 `legal_hold`, `legal_hold_reason`, `anonymized_at`
+
+### 2.10 CSV 내보내기
+
+- **케이스**: `GET /cases/export` — 관리자·감사팀, `/cases`와 같은 필터(`case_status`, `priority`, `case_type`, `start_date`, `end_date`, `search`, `overdue`), 최대 50,000건
+- **감사로그**: `GET /audit-logs/export?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD` — 관리자·감사팀, 최대 100,000건
+- UTF-8 BOM CSV(Excel 호환), 수식 주입 방지(`=`, `+`, `-`, `@`로 시작하는 값 앞에 `'`), 내보내기는 감사로그에 기록
 
 ---
 
@@ -155,6 +177,7 @@ Fleit InsiderGuard SICS의 주요 API 엔드포인트와 사용법을 설명합�
 
 - **Endpoint**: `GET /attachments/{file_id}`
 - **보안**: Path Traversal 검증 및 접속자 열람 권한 확인 후 스트림 반환.
+- **무결성**: 업로드 시 저장한 SHA-256과 비교해 다르면 409(`EVIDENCE_INTEGRITY_FAILED`). 응답 헤더 `X-Content-SHA256`, `X-Integrity`(`verified` / `unverified`=해시 없는 기존 파일). 다운로드는 감사로그에 기록
 
 ### 3.3 검토 승인/반려 (관리자용)
 
@@ -203,6 +226,7 @@ Fleit InsiderGuard SICS의 주요 API 엔드포인트와 사용법을 설명합�
 - **Endpoint**: `POST /system/users/upload`
 - **Content-Type**: `multipart/form-data`
 - **Parameters**: `file` (.csv 또는 .json 파일), `format` (auto, csv, json)
+- **열**: `user_email`, `user_name`, `password`, `role`, `company`, `department`, `manager_email`(선택, 부서장 이메일 — 이미 등록된 사용자 행에도 적용)
 
 ### 4.5 백그라운드 작업 (System Jobs) 관리
 
@@ -230,7 +254,26 @@ Fleit InsiderGuard SICS의 주요 API 엔드포인트와 사용법을 설명합�
   - `client_secret`: 생략 또는 `"********"`이면 기존 값 유지, `""`이면 삭제
   - 활성화 시 테넌트·클라이언트 ID 필수, ID는 GUID 형식만 허용 (위반 시 422). 저장 즉시 반영, 감사로그 기록
 - **연결 테스트**: `POST /integrations/entra/test` → `{"status": "success|error", "message": "..."}` (저장된 설정으로 앱 토큰 발급 시도)
-- **사용자 동기화**: `POST /users/sync-entra` — 연동·시크릿 미설정 시 422, Graph 호출 실패 시 503
+- **사용자 동기화**: `POST /users/sync-entra` — 연동·시크릿 미설정 시 422, Graph 호출 실패 시 503. Entra의 manager를 SICS 부서장으로 연결 (`stats.managers_linked`)
+
+### 4.8 Teams 채널 웹훅
+
+- **권한**: `SYSTEM_ADMIN` 전용
+- **조회/저장**: `GET` / `PUT /integrations/teams` — Body `{"is_enabled": true, "webhook_url": "https://..."}` (`webhook_url`: 생략 또는 `"********"`이면 유지, `""`이면 삭제, https만 허용, 암호화 저장)
+- **테스트**: `POST /integrations/teams/test`
+
+### 4.9 알림 메일 템플릿
+
+- **권한**: `SYSTEM_ADMIN`, `SECURITY_ADMIN`
+- **목록**: `GET /notifications/templates` (이름·설명·변수·현재 제목/본문·수정 여부)
+- **수정**: `PUT /notifications/templates/{key}` — Body `{"subject", "body_html"}`. Jinja2 샌드박스로 샘플 렌더링해 문법 오류·허용되지 않는 구문이면 422
+- **초기화**: `DELETE /notifications/templates/{key}` (기본 템플릿으로)
+- **미리보기**: `POST /notifications/templates/{key}/preview` (저장하지 않음, 샘플 값 사용)
+
+### 4.10 사용자 부서장
+
+- `POST/PUT /users`의 `manager_id` (사용자 ID 또는 `null`). 본인 지정 불가(422). 수정 시 생략하면 기존 값 유지
+- 역할·부서장은 시스템관리자만 변경 가능 (본인 정보 수정 시 변경하면 403)
 
 ---
 

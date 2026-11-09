@@ -38,7 +38,8 @@
     "stop": "Stop",
     "locale": "en-US",
     "detectionDate": "Detection Date",
-    "integrations": "Integrations"
+    "integrations": "Integrations",
+    "notifications": "Notification Templates"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -96,7 +97,8 @@
       "reviewed": "Reviewed",
       "noData": "No daily statistics data available.",
       "noDataSub": "The chart will be displayed after midnight batch execution or daily stats collection."
-    }
+    },
+    "overdue": "Overdue"
   },
   "auth": {
     "ssoLogin": "Microsoft SSO Login",
@@ -205,7 +207,8 @@
         "closeRequirement": "Please enter closure result and reason.",
         "closeSuccess": "Case closed successfully.",
         "closeFail": "Closure failed.",
-        "fileValidationFail": "File validation failed."
+        "fileValidationFail": "File validation failed.",
+        "integrityFail": "File integrity check failed. The file may have been modified or corrupted, so the download was blocked. Please contact a security administrator."
       },
       "modal": {
         "closeResult": "Close Result",
@@ -245,6 +248,25 @@
         "finalHeading": "Final Procedure"
       },
       "reviewCompleted": "Review Completed"
+    },
+    "badge": {
+      "overdue": "Overdue",
+      "legalHold": "Legal hold",
+      "anonymized": "Personal data purged"
+    },
+    "admin": {
+      "historyTitle": "This employee's other cases",
+      "historyEmpty": "No other cases.",
+      "historyTotal": "Total",
+      "historyRejected": "Rejected",
+      "historyDisciplinary": "Disciplinary",
+      "legalHoldTitle": "Legal hold",
+      "legalHoldDesc": "Cases on hold are not anonymized after the retention period. Use when evidence must be kept for discipline or litigation.",
+      "legalHoldOn": "On legal hold",
+      "legalHoldRelease": "Release hold",
+      "legalHoldSet": "Place legal hold",
+      "legalHoldReasonPlaceholder": "Reason (required)",
+      "anonymizedNotice": "Personal data was purged (anonymized) on {{date}} after the retention period."
     }
   },
   "submission": {
@@ -322,7 +344,10 @@
       "reRequest": "Re-request",
       "insufficient": "Insufficient Clarification",
       "disciplinary": "Disciplinary Action",
-      "securityEducation": "Security Education Required"
+      "securityEducation": "Security Education Required",
+      "exportCsv": "Export CSV",
+      "exportHint": "Exports cases of all statuses matching the current filters (opens in Excel)",
+      "exportFail": "Export failed."
     },
     "logs": {
       "title": "System Audit Logs",
@@ -338,7 +363,11 @@
         "ip": "IP Address",
         "time": "Time"
       },
-      "noLogs": "No log data available."
+      "noLogs": "No log data available.",
+      "exportCsv": "Export CSV",
+      "exportFrom": "From",
+      "exportTo": "To",
+      "exportFail": "Export failed."
     },
     "jobs": {
       "title": "Background Job Management",
@@ -367,7 +396,7 @@
       "unit": "items",
       "paginationInfo": "Showing {{start}} - {{end}} of {{total}}",
       "descGenerateStats": "Daily Cases & Stats Generation",
-      "descArchiveCases": "Archive Expired/Closed Cases",
+      "descArchiveCases": "Anonymize personal data of cases past retention",
       "descSendReminders": "Bulk Send Deadline Reminders",
       "descWeeklyReport": "Weekly Security Progress Report",
       "descSyncSiem": "SIEM Log Collection ({{id}})",
@@ -386,7 +415,8 @@
       "cronEditDesc": "Edit cron expression for job '{{name}}'.",
       "cronInput": "Cron Expression",
       "cronHelp": "Cron Format Help",
-      "filterTitle": "Select Job Filter"
+      "filterTitle": "Select Job Filter",
+      "descOverdue": "Send overdue clarification notices"
     },
     "permissions": {
       "title": "Menu Access Permission",
@@ -409,7 +439,8 @@
         "env": "Env Management",
         "jobs": "Background Jobs",
         "permissions": "Permissions",
-        "integrations": "Integrations"
+        "integrations": "Integrations",
+        "notifications": "Notification Templates"
       }
     },
     "user": {
@@ -441,7 +472,10 @@
         "department": "Department",
         "role": "Role",
         "passwordChange": "Password Change (Optional)",
-        "passwordHint": "Leave empty to keep existing password."
+        "passwordHint": "Leave empty to keep existing password.",
+        "manager": "Manager (CC notices)",
+        "managerNone": "None",
+        "managerHint": "Receives CC emails on submissions and overdue cases. Has no approval rights."
       },
       "bulk": {
         "title": "Bulk User Upload",
@@ -453,7 +487,8 @@
         "success": "Success",
         "skipped": "Skipped (Duplicate)",
         "failed": "Failed",
-        "uploading": "Uploading..."
+        "uploading": "Uploading...",
+        "columnsHint": "Columns: user_email, user_name, password, role, company, department, manager_email (optional manager email — also applied to existing users)"
       },
       "alerts": {
         "syncConfirm": "Sync user info from Microsoft Entra ID?",
@@ -664,6 +699,32 @@
       "guideSso": "SSO sign-in: no additional API permissions (openid, profile, email)",
       "guideSync": "User sync: Microsoft Graph User.Read.All (application permission, admin consent) + client secret",
       "guideMail": "Outlook mail: Microsoft Graph Mail.Send (application permission, admin consent) + client secret + MAIL_SENDER_TYPE=OUTLOOK in .env"
+    },
+    "teams": {
+      "title": "Microsoft Teams channel notifications",
+      "description": "Notifies the security team channel of submissions, overdue cases and SIEM collection results.",
+      "enabled": "Enable notifications",
+      "webhookUrl": "Workflows webhook URL",
+      "urlSet": "Set (enter only to change)",
+      "clearUrl": "Delete stored URL",
+      "test": "Send test message",
+      "guide1": "In the Teams channel, create a workflow from the \"Post to a channel when a webhook request is received\" template and paste its URL.",
+      "guide2": "Notifications include only case numbers, rules and counts — never employee names or clarification content.",
+      "guide3": "The URL contains an authentication signature, so it is stored encrypted and never shown again."
     }
+  },
+  "notifications": {
+    "title": "Notification Templates",
+    "description": "Edit email subjects and bodies. Changes apply to emails sent after saving.",
+    "customized": "Customized",
+    "subject": "Subject",
+    "body": "Body (HTML)",
+    "variables": "Available variables",
+    "syntaxHint": "Jinja2 syntax ({{ variable }}, {% if %}, etc.) is supported. Values are HTML-escaped automatically. Constructs blocked for security cannot be saved.",
+    "preview": "Preview",
+    "reset": "Restore default",
+    "resetConfirm": "Discard your changes and restore the default template?",
+    "saved": "Template saved.",
+    "resetDone": "Default template restored."
   }
 }

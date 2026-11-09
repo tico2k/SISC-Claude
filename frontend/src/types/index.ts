@@ -6,6 +6,7 @@ export interface User {
     role: '일반' | '보안관리자' | '감사팀' | '시스템관리자';
     company?: string;
     department?: string;
+    manager_id?: number | null;  // 부서장(참조 알림 수신자)
 }
 
 export interface LoginCredentials {
@@ -29,6 +30,7 @@ export interface UserRegisterRequest {
     company?: string;
     department?: string;
     role: string;
+    manager_id?: number | null;
 }
 
 export interface AuthResponse {
@@ -103,6 +105,32 @@ export interface Case {
     reviewer_name?: string;
     original_log_link?: string;
     attachments?: Attachment[];
+    is_overdue?: boolean;            // 요청 상태에서 기한 경과
+    legal_hold?: boolean;            // 증거 보존 지정
+    legal_hold_reason?: string | null;
+    anonymized_at?: string | null;   // 보존기간 경과로 개인정보 익명화된 시각
+}
+
+// 심의 참고: 같은 직원의 다른 케이스 이력
+export interface EmployeeCaseSummary {
+    case_id: number;
+    rule_title: string;
+    case_type: string;
+    case_status: string;
+    case_result?: string | null;
+    priority?: string | null;
+    created_at: string;
+}
+
+export interface EmployeeHistory {
+    employee_id?: number | null;
+    employee_name?: string | null;
+    total: number;
+    rejected: number;
+    disciplinary: number;
+    by_status: Record<string, number>;
+    by_result: Record<string, number>;
+    recent: EmployeeCaseSummary[];
 }
 
 export interface Attachment {
@@ -110,6 +138,7 @@ export interface Attachment {
     submission_id?: number | null;
     original_filename: string;
     file_size?: number;
+    sha256?: string | null;  // 없으면 무결성 미검증(기존 파일)
     uploaded_at: string;
 }
 
@@ -186,6 +215,7 @@ export interface CaseStatsChartPoint {
 
 export interface CaseStats {
     total: number;
+    overdue?: number;
     status: { unclassified: number; requested: number; submitted: number; approved: number; rejected: number; closed: number };
     priority: { high: number; medium: number; low: number };
     case_type: { leak: number; violation: number; system: number; abuse: number };
@@ -239,3 +269,33 @@ export interface EntraSyncResponse {
 
 /** 관리자 수동 작업 실행 시 전달하는 옵션 (예: { target_date: '2026-11-01' }) */
 export type JobTriggerPayload = Record<string, string>;
+
+// Teams 채널 웹훅 (보안팀 알림)
+export interface TeamsIntegration {
+    is_enabled: boolean;
+    webhook_url_set: boolean;
+    updated_at?: string | null;
+}
+
+export interface TeamsIntegrationUpdate {
+    is_enabled: boolean;
+    // 미입력(undefined): 기존 값 유지 / '': 삭제
+    webhook_url?: string;
+}
+
+// 알림 메일 템플릿
+export interface NotificationTemplate {
+    template_key: string;
+    name: string;
+    description: string;
+    variables: string[];
+    subject: string;
+    body_html: string;
+    is_customized: boolean;
+    updated_at?: string | null;
+}
+
+export interface NotificationPreview {
+    subject: string;
+    body_html: string;
+}

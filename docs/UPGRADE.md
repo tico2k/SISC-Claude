@@ -53,6 +53,12 @@ git pull origin main
    - `frontend/.env`: `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_TENANT_ID`
    - 스키마 변경(`integration_setting` 테이블)은 `alembic upgrade head`로 적용합니다
 
+4. **소명 기능 개선 (마이그레이션 0004)**: `alembic upgrade head` 전에 DB를 백업하세요 (SQLite는 일부 테이블을 재생성합니다).
+   - 보존기간을 바꾸려면 `.env`에 `CASE_RETENTION_DAYS=<일수>`를 직접 추가합니다 (기본 1095일, 웹 UI는 기존 키만 수정 가능)
+   - `보존기간 경과 케이스 개인정보 파기` 작업(기존 `archive_old_cases`)은 실제로 개인정보를 지우므로, 보존기간과 증거 보존 대상을 확인한 뒤 활성화하세요
+   - `소명 기한 초과 알림 발송` 작업이 새로 등록되어 기본 활성 상태로 매일 09:30 실행됩니다. 첫 실행 때 이미 기한이 지난 케이스 전체에 알림이 나가므로, 원치 않으면 먼저 일시정지하세요
+   - 해시 도입 이전 첨부파일은 무결성 `미검증`으로 표시됩니다
+
 ---
 
 ## 3. DB 마이그레이션 (필수)

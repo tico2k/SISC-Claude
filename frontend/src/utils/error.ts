@@ -13,3 +13,7 @@ export const getApiErrorBody = (err: unknown): ApiErrorBody =>
 /** catch 절의 unknown 오류에서 메시지 문자열을 꺼낸다 */
 export const getErrorMessage = (err: unknown): string =>
     err instanceof Error ? err.message : String(err);
+
+/** catch 절의 unknown 오류에서 HTTP 상태 코드를 꺼낸다 (없으면 undefined) */
+export const getHttpStatus = (err: unknown): number | undefined =>
+    axios.isAxiosError(err) ? err.response?.status : undefined;

@@ -1,7 +1,8 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, ForeignKey, Text, Enum, Index, JSON
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, false as sa_false
 import enum
+from datetime import datetime
 from .core.database import Base
 
 # Enums based on SQL constraints
@@ -54,6 +55,8 @@ class User(Base):
     department = Column(String(100))
     role = Column(Enum(UserRole), nullable=False)
     last_login = Column(DateTime, nullable=True)  # 마지막 로그인 시간
+    # 부서장(참조 알림 수신자). 결재 권한은 없고 소명 제출·기한 초과 시 참조 메일만 받는다
+    manager_id = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
     idate = Column(DateTime)
     udate = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -65,6 +68,7 @@ class User(Base):
     audit_logs = relationship("SystemAuditLog", back_populates="actor")
     login_history = relationship("LoginHistory", back_populates="user")
     final_reviews = relationship("ClarificationCase", foreign_keys="ClarificationCase.final_reviewer_id", back_populates="final_reviewer")
+    manager = relationship("User", remote_side=[user_id], foreign_keys=[manager_id])
 
 
 
@@ -90,6 +94,13 @@ class ClarificationCase(Base):
     original_log_link = Column(Text, nullable=True)
     locked_by_id = Column(Integer, ForeignKey("users.user_id"), nullable=True)
     locked_at = Column(DateTime, nullable=True)
+    # 기한 초과 알림 발송 시각 (중복 발송 방지)
+    overdue_notified_at = Column(DateTime, nullable=True)
+    # 증거 보존(legal hold): 지정된 케이스는 보존기간이 지나도 파기하지 않음
+    legal_hold = Column(Boolean, default=False, server_default=sa_false(), nullable=False)
+    legal_hold_reason = Column(Text, nullable=True)
+    # 보존기간 경과로 개인정보를 익명화한 시각
+    anonymized_at = Column(DateTime, nullable=True)
 
     # 성능 최적화를 위한 인덱스
     __table_args__ = (
@@ -106,6 +117,15 @@ class ClarificationCase(Base):
     submissions = relationship("ClarificationSubmission", back_populates="case", cascade="all, delete-orphan")
     review_history = relationship("ReviewHistory", back_populates="case", cascade="all, delete-orphan")
     attachments = relationship("ClarificationAttachment", back_populates="case", cascade="all, delete-orphan")
+
+    @property
+    def is_overdue(self) -> bool:
+        """소명 요청 상태에서 기한이 지난 경우 (상태는 바꾸지 않고 표시·알림에만 사용)"""
+        return (
+            self.case_status == CaseStatus.REQUEST
+            and self.due_date is not None
+            and self.due_date < datetime.now()
+        )
 
 
 class ClarificationSubmission(Base):
@@ -141,6 +161,7 @@ class ClarificationAttachment(Base):
     stored_filename = Column(String(255), nullable=False)
     file_path = Column(Text, nullable=False)
     file_size = Column(Integer)
+    sha256 = Column(String(64), nullable=True)  # 업로드 시점 해시 (다운로드 시 무결성 검증, 기존 파일은 NULL)
     uploaded_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     # Relationships
@@ -234,6 +255,17 @@ class IntegrationSetting(Base):
     client_id = Column(String(100))
     client_secret = Column(String(500))  # Fernet 암호문
     mail_sender = Column(String(150))  # Outlook(Graph) 메일 발송용 공용 사서함
+    webhook_url = Column(String(1000))  # Teams 채널 웹훅 URL (Fernet 암호문, provider=TEAMS)
+    updated_by = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+class NotificationTemplate(Base):
+    """관리자가 화면에서 수정한 알림 메일 템플릿 (행이 없으면 기본 파일 템플릿 사용)"""
+    __tablename__ = "notification_template"
+
+    template_key = Column(String(100), primary_key=True)  # 예: case_created.html
+    subject = Column(String(500), nullable=False)
+    body_html = Column(Text, nullable=False)
     updated_by = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 

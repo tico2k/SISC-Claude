@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     # 알림 및 자동화 설정
     ENABLE_EMAIL_NOTIFICATIONS: bool = True
     DEADLINE_REMINDER_DAYS: List[int] = [3, 1]  # 마감 3일 전, 1일 전
+
+    # 보존기간: 종결(승인·반려·종결) 후 이 기간이 지나면 개인정보를 익명화 (증거 보존 지정 케이스 제외)
+    CASE_RETENTION_DAYS: int = 1095  # 3년
     
     @property
     def frontend_url(self) -> str:

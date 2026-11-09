@@ -1,12 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { systemService, AuditLog } from '../services/system.service';
 import { useTranslation } from 'react-i18next';
-import { Shield, Clock, Monitor } from 'lucide-react';
+import { Shield, Clock, Monitor, Download } from 'lucide-react';
 
 const SystemLogs: React.FC = () => {
     const { t } = useTranslation();
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
+    const [exportStart, setExportStart] = useState('');
+    const [exportEnd, setExportEnd] = useState('');
+    const [exporting, setExporting] = useState(false);
+
+    // 감사 제출용 CSV (기간 미지정 시 전체, 내보내기 행위도 감사로그에 기록됨)
+    const handleExport = async () => {
+        setExporting(true);
+        try {
+            await systemService.exportAuditLogs(exportStart || undefined, exportEnd || undefined);
+        } catch {
+            alert(t('system.logs.exportFail'));
+        } finally {
+            setExporting(false);
+        }
+    };
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -24,9 +39,23 @@ const SystemLogs: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900">{t('system.logs.title')}</h1>
-                <p className="text-slate-500 mt-1">{t('system.logs.description')}</p>
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900">{t('system.logs.title')}</h1>
+                    <p className="text-slate-500 mt-1">{t('system.logs.description')}</p>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                    <input type="date" value={exportStart} onChange={(e) => setExportStart(e.target.value)}
+                        aria-label={t('system.logs.exportFrom')} className="border border-slate-300 rounded-lg px-2 py-1.5" />
+                    <span className="text-slate-400">~</span>
+                    <input type="date" value={exportEnd} onChange={(e) => setExportEnd(e.target.value)}
+                        aria-label={t('system.logs.exportTo')} className="border border-slate-300 rounded-lg px-2 py-1.5" />
+                    <button onClick={handleExport} disabled={exporting}
+                        className="flex items-center px-3 py-1.5 border border-slate-300 bg-white text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-50 font-medium">
+                        <Download className="w-4 h-4 mr-1.5" />
+                        {exporting ? t('common.loading') : t('system.logs.exportCsv')}
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

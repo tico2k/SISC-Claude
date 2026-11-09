@@ -1,6 +1,7 @@
 """
 파일 업로드 유틸리티 및 검증 함수
 """
+import hashlib
 import os
 import uuid
 import re
@@ -74,9 +75,9 @@ async def validate_and_save_file(
     upload_dir: Path,
     allowed_extensions: Optional[set] = None,
     max_size_bytes: Optional[int] = None
-) -> tuple[str, str, int]:
+) -> tuple[str, str, int, str]:
     """
-    파일 검증 및 저장
+    파일 검증 및 저장 (증거 무결성 검증용 SHA-256 해시를 함께 반환)
     
     Args:
         file: 업로드된 파일
@@ -85,7 +86,7 @@ async def validate_and_save_file(
         max_size_bytes: 최대 파일 크기 (None이면 기본값 사용)
         
     Returns:
-        (원본 파일명, 저장된 파일명, 파일 크기) 튜플
+        (원본 파일명, 저장된 파일명, 파일 크기, SHA-256 hex) 튜플
         
     Raises:
         HTTPException: 검증 실패 시
@@ -134,7 +135,16 @@ async def validate_and_save_file(
     # 파일 포인터를 처음으로 되돌림 (재사용을 위해)
     await file.seek(0)
     
-    return file.filename, safe_filename, file_size
+    return file.filename, safe_filename, file_size, hashlib.sha256(content).hexdigest()
+
+
+def compute_file_sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
+    """저장된 파일의 SHA-256 (다운로드 시 무결성 검증용)"""
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(chunk_size), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 def get_allowed_extensions_list() -> List[str]:
     """

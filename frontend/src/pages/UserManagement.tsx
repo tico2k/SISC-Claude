@@ -94,7 +94,8 @@ const UserManagement: React.FC = () => {
             password: '',
             company: '',
             department: '',
-            role: '일반'
+            role: '일반',
+            manager_id: null
         });
         setIsModalOpen(true);
     };
@@ -108,7 +109,8 @@ const UserManagement: React.FC = () => {
             password: '', // Password not shown
             company: user.company || '',
             department: user.department || '',
-            role: user.role
+            role: user.role,
+            manager_id: user.manager_id ?? null
         });
         setIsModalOpen(true);
     };
@@ -400,6 +402,22 @@ const UserManagement: React.FC = () => {
                                     <option value="시스템관리자">{t('system.user.roles.admin')}</option>
                                 </select>
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700">{t('system.user.modal.manager')}</label>
+                                <select
+                                    value={formData.manager_id ?? ''}
+                                    onChange={(e) => setFormData({ ...formData, manager_id: e.target.value ? Number(e.target.value) : null })}
+                                    className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 sm:text-sm"
+                                >
+                                    <option value="">{t('system.user.modal.managerNone')}</option>
+                                    {users.filter(u => u.user_id !== editingId || !isEditMode).map(u => (
+                                        <option key={u.user_id} value={u.user_id}>
+                                            {u.user_name} ({u.user_email}){u.department ? ` - ${u.department}` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="mt-1 text-xs text-slate-500">{t('system.user.modal.managerHint')}</p>
+                            </div>
 
                             {/* Password Reset Section (Only for Edit) */}
                             {isEditMode && (
@@ -451,6 +469,7 @@ const UserManagement: React.FC = () => {
                                 <label className="block text-sm font-medium text-slate-700 mb-1">
                                     {t('system.user.bulk.fileSelect')}
                                 </label>
+                                <p className="text-xs text-slate-500 mb-2">{t('system.user.bulk.columnsHint')}</p>
                                 <input
                                     type="file"
                                     accept=".csv,.json"

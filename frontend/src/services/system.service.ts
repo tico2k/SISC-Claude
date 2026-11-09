@@ -1,4 +1,5 @@
 import { client } from './client';
+import { saveBlob } from '../utils/download';
 import { JobTriggerPayload } from '../types';
 
 export interface AuditLog {
@@ -64,6 +65,13 @@ export const systemService = {
             params: { skip, limit }
         });
         return response.data;
+    },
+    exportAuditLogs: async (startDate?: string, endDate?: string): Promise<void> => {
+        const params: Record<string, string> = {};
+        if (startDate) params.start_date = startDate;
+        if (endDate) params.end_date = endDate;
+        const response = await client.get('/audit-logs/export', { params, responseType: 'blob' });
+        saveBlob(response.data, response.headers['content-disposition'], 'audit_logs.csv');
     },
     getEnv: async (): Promise<EnvResponse> => {
         const response = await client.get<EnvResponse>('/system/env');

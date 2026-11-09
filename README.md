@@ -11,10 +11,16 @@ SIEM에서 탐지된 내부자 보안 인시던트에 대해 관련 임직원에
 
 - ⚖️ **소명 워크플로우**: `미확인 → 요청 → 제출 → 승인 | 반려 → 종결`. 반려는 **재소명(A)**, **보안교육·서약(B)**, **감사 이관(C)** 3가지 후속 조치로 구분
 - 🔐 **역할 기반 접근 제어**: 일반 사용자는 본인 케이스만 볼 수 있고 `미확인`·`종결` 상태는 API·UI 모두에서 차단. 역할별 메뉴 권한은 화면에서 조정
-- 🔒 **심의 잠금(Case Lock)·감사로그**: 관리자 간 동시 심의 충돌을 막고, 주요 행위를 시스템 감사로그에 기록
+- 🔒 **심의 잠금(Case Lock)·감사로그**: 관리자 간 동시 심의 충돌을 막고, 열람·다운로드·내보내기를 포함한 주요 행위를 시스템 감사로그에 기록
+- ⏳ **기한 초과 관리**: 기한이 지난 소명 요청을 표시하고 직원·부서장·보안팀에 1회 알림 (상태는 유지)
+- 🧾 **증거 무결성**: 첨부파일 SHA-256을 저장하고 다운로드 때마다 검증, 변조 의심 시 차단
+- 🗑️ **보존기간 경과 파기**: 보존기간(기본 3년)이 지난 케이스의 개인정보를 익명화, 증거 보존(legal hold) 지정 시 제외
+- 🗂️ **심의 참고 정보**: 같은 직원의 과거 케이스·반려·징계 이력 요약, 부서장 참조 메일(결재 없음)
+- 📤 **감사 제출용 내보내기**: 케이스 목록·감사로그 CSV(Excel 호환)
 - 🖨️ **감사 이관 보고서 인쇄**: 사건 개요, 탐지 로그, 소명 내역, 심의 의견을 정리한 문서 출력·PDF 저장
 - ⏰ **백그라운드 작업 스케줄링**: 기한 알림, 일일 통계, 주간 보고서, SIEM 수집 주기를 화면에서 변경 (재시작 불필요)
-- 📧 **메일 알림**: SMTP 기본, Microsoft Graph(Outlook) 발송은 선택
+- 📧 **메일 알림**: SMTP 기본, Microsoft Graph(Outlook) 발송은 선택. 제목·본문은 `알림 템플릿` 화면에서 편집
+- 💬 **Teams 채널 알림 (선택)**: 보안팀 채널에 제출·기한 초과·SIEM 수집 결과 알림 (Workflows 웹훅)
 - 🔍 **SIEM 연동 (선택)**: Microsoft Sentinel 수집·필드 매핑으로 케이스 자동 생성 (ELK·Splunk 수집기는 구현 예정)
 - 🪪 **Entra ID 연동 (선택)**: SSO 로그인(ID 토큰 서명·대상·테넌트 검증), 사용자 동기화
 - 🌐 **다국어**: 한국어 / 영어
@@ -76,6 +82,7 @@ cd frontend && npm install && npm run dev
 |---|---|---|
 | Microsoft Entra ID | `외부 연동 설정` (시스템관리자) | SSO 로그인, 사용자 동기화, Outlook 메일 발송 |
 | Microsoft Sentinel | `SIEM 연동` (보안관리자·시스템관리자) | 주기적 인시던트 수집 → 케이스 자동 생성 |
+| Microsoft Teams | `외부 연동 설정` (시스템관리자) | 보안팀 채널 알림 (웹훅 URL만 필요) |
 
 ▶️ Azure 앱 등록·권한 설정과 화면별 절차: [`docs/INTEGRATION_GUIDE.md`](docs/INTEGRATION_GUIDE.md)
 
@@ -119,7 +126,7 @@ python backend/scripts/generate_openapi.py && cd frontend && npm run generate-ty
 backend/
   main.py                 앱 생성, 미들웨어, 라우터 등록, 초기 시딩·스케줄러
   core/                   설정, DB, 인증·권한, 암호화, 스케줄러, 메일
-  modules/<도메인>/        API (auth, users, cases, submissions, reviews, siem, system, audit, reports, integrations)
+  modules/<도메인>/        API (auth, users, cases, submissions, reviews, siem, system, audit, reports, integrations, notifications)
   services/               SIEM 수집기 (BaseCollector → SentinelCollector)
   tasks/                  배치·메일·SIEM 동기화 작업
   migrations/             Alembic 마이그레이션

@@ -36,7 +36,8 @@ def start_scheduler():
                     {"id": "send_deadline_reminders", "name": "소명 기한 임박 안내 메일 일괄 발송", "cron": "0 9 * * *", "func": batch_tasks.send_deadline_reminders},
                     {"id": "generate_daily_statistics", "name": "일일 케이스 및 통계 지표 자동 생성", "cron": "0 0 * * *", "func": batch_tasks.generate_daily_statistics},
                     {"id": "generate_weekly_report", "name": "주간 보안 소명 진행률 리포트 생성", "cron": "0 8 * * 1", "func": batch_tasks.generate_weekly_report},
-                    {"id": "archive_old_cases", "name": "만료/종료된 소명 케이스 자동 아카이빙", "cron": "0 2 * * *", "func": batch_tasks.archive_old_cases},
+                    {"id": "archive_old_cases", "name": batch_tasks.RETENTION_JOB_NAME, "cron": "0 2 * * *", "func": batch_tasks.archive_old_cases},
+                    {"id": "notify_overdue_cases", "name": "소명 기한 초과 알림 발송", "cron": "30 9 * * *", "func": batch_tasks.notify_overdue_cases},
                 ]
 
                 for job_info in system_jobs:
@@ -56,6 +57,10 @@ def start_scheduler():
                         db.add(config)
                         db.commit()
                         logger.info(f"시스템 작업 초기 설정 등록: {job_info['id']}")
+                    elif config.job_name != job_info["name"]:
+                        # 작업 내용이 바뀐 경우(예: 아카이빙 → 개인정보 파기) 표시 이름만 갱신
+                        config.job_name = job_info["name"]
+                        db.commit()
                     
                     if config.is_active:
                         try:

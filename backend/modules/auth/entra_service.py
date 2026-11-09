@@ -45,7 +45,9 @@ def get_all_users(entra) -> List[Dict[str, Any]]:
     """Graph API로 전체 사용자 목록을 가져온다 (페이지 처리 포함)"""
     token = get_app_access_token(entra)
     headers = {"Authorization": f"Bearer {token}"}
-    url = f"{settings.GRAPH_API_URL}/v1.0/users?$select=userPrincipalName,displayName,companyName,department,jobTitle"
+    # manager는 부서장 자동 지정에 사용 (User.Read.All 권한으로 조회 가능)
+    url = (f"{settings.GRAPH_API_URL}/v1.0/users?$select=userPrincipalName,displayName,companyName,department,jobTitle"
+           "&$expand=manager($select=userPrincipalName)")
 
     users: List[Dict[str, Any]] = []
     while url:

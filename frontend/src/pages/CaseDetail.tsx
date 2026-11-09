@@ -5,6 +5,7 @@ import { caseService } from '../services/case.service';
 import { useAuth } from '../context/AuthContext';
 import { Case } from '../types';
 import { validateFiles } from '../utils/fileValidation';
+import { getHttpStatus } from '../utils/error';
 import {
     ArrowLeft,
     Calendar,
@@ -19,9 +20,12 @@ import {
     FileText,
     Printer,
     ExternalLink,
-    AlertOctagon
+    AlertOctagon,
+    Clock,
+    Lock
 } from 'lucide-react';
 import SmartSubmissionForm from '../components/SmartSubmissionForm';
+import CaseAdminPanel from '../components/CaseAdminPanel';
 
 interface CaseDetailProps {
     caseId?: number;
@@ -163,7 +167,8 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseId: propCaseId, isEmbedded 
             document.body.removeChild(a);
         } catch (error) {
             console.error(error);
-            alert(t('cases.detail.alerts.downloadFail'));
+            // 409: 저장 해시와 파일이 달라 무결성 검증 실패 (변조·손상 의심)
+            alert(getHttpStatus(error) === 409 ? t('cases.detail.alerts.integrityFail') : t('cases.detail.alerts.downloadFail'));
         }
     };
 
@@ -305,6 +310,21 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseId: propCaseId, isEmbedded 
                             <p className="text-sm text-slate-500 font-medium">{cse.rule_description || `${t('dashboard.daily.unclassified')}: ${cse.rule_title}`}</p>
                         </div>
                         <div className="flex items-center space-x-3">
+                            {cse.is_overdue && (
+                                <span className="inline-flex items-center px-3 py-1 rounded text-xs font-black border bg-red-50 text-red-600 border-red-200">
+                                    <Clock className="w-3.5 h-3.5 mr-1" />{t('cases.badge.overdue')}
+                                </span>
+                            )}
+                            {cse.legal_hold && (
+                                <span className="inline-flex items-center px-3 py-1 rounded text-xs font-black border bg-amber-50 text-amber-700 border-amber-200">
+                                    <Lock className="w-3.5 h-3.5 mr-1" />{t('cases.badge.legalHold')}
+                                </span>
+                            )}
+                            {cse.anonymized_at && (
+                                <span className="px-3 py-1 rounded text-xs font-black border bg-slate-100 text-slate-500 border-slate-200">
+                                    {t('cases.badge.anonymized')}
+                                </span>
+                            )}
                             <span className={`px-3 py-1 rounded text-xs font-black border ${getStatusColor(cse.case_status)}`}>
                                 {getStatusLabel(cse.case_status)}
                             </span>
@@ -347,10 +367,15 @@ const CaseDetail: React.FC<CaseDetailProps> = ({ caseId: propCaseId, isEmbedded 
                         </div>
                         <div className="space-y-1.5">
                             <span className="text-[10px] text-slate-400 font-black uppercase tracking-tight">{t('cases.filter.employee')}</span>
-                            <p className="text-sm font-bold text-slate-800">{cse.related_employee?.user_name || '장영미'}</p>
+                            <p className="text-sm font-bold text-slate-800">{cse.related_employee?.user_name || '-'}</p>
                         </div>
                     </div>
                 </div>
+
+                {/* 관리자·감사팀: 직원 이력, 증거 보존 */}
+                {(role === '보안관리자' || role === '감사팀' || role === '시스템관리자') && (
+                    <CaseAdminPanel cse={cse} onUpdated={() => fetchCase(cse.case_id)} />
+                )}
 
                 {/* Request Details Card (Visible to everyone if NOT UNCLASSIFIED) */}
                 {cse.case_status !== '미확인' && (cse.summary || (cse.attachments && cse.attachments.filter(a => !a.submission_id).length > 0)) && (
