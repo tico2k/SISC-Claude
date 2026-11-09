@@ -69,8 +69,8 @@ graph TB
         DB[(SQLite / PostgreSQL)]
         SeedEngine[Enterprise Realistic Seeding Engine]
         Files[Local File Storage (Audit Attachments)]
-        SIEM[(External SIEMs - Sentinel/Splunk/ELK)]
-        SMTP[(Mail Server - Graph API)]
+        SIEM[(External SIEMs - Sentinel/Splunk/ELK, 선택)]
+        SMTP[(Mail Server - SMTP / Graph 선택)]
     end
     
     Browser --> React
@@ -158,7 +158,7 @@ v1.3.0부터 외부 메세지 큐(Celery/Redis)를 제거하고 **APScheduler**�
 ### 🔒 보안 방벽 설계 (Defense in Depth)
 
 1. **인증 및 인가 (Authentication / SSO)**:
-    - **Local JWT & Microsoft Entra ID**: 자체 JWT 메커니즘뿐만 아니라 Oauth2(Entra) 연동을 통한 기업용 SSO 지원.
+    - **Local JWT & Microsoft Entra ID (선택)**: 자체 JWT 로그인이 기본이며, 설치 후 관리자가 `외부 연동 설정`에서 Entra를 활성화하면 OIDC SSO를 지원. 서버는 ID 토큰의 서명(JWKS)·aud·tid·만료를 검증하며, 연동 정보는 DB(`integration_setting`)에 암호화 저장되어 재시작·재빌드 없이 반영.
     - **역할 기반 데이터 격리 (Data Isolation Policy - v2.1.0)**:
       - 일반 사용자(`USER` / `일반`) 권한의 경우 미검토 상태인 `UNCLASSIFIED(미확인)` 및 내부 정리용 `CLOSE(종결)` 건에 대한 API 접근 및 프론트 노출을 원천 격리/차단.
       - 대시보드의 전사 트렌드 통계 차트 및 주간 리포트 위젯은 일반 사용자 세션에서 렌더링되지 않도록 보안 은닉 처리.

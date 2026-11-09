@@ -22,7 +22,7 @@ class UserLogin(BaseModel):
     password: str
 
 class EntraLoginRequest(BaseModel):
-    access_token: str
+    id_token: str  # MSAL 로그인 결과의 ID 토큰 (서버에서 서명·aud·tid 검증)
 
 class UserResponse(UserBase):
     user_id: int
@@ -48,6 +48,30 @@ class AuthConfigResponse(BaseModel):
     allow_local: bool
     allow_entra: bool
     default_method: str
+    # Entra 연동이 활성화된 경우에만 채워짐 (공개 값, 프론트 MSAL 초기화용)
+    entra_client_id: Optional[str] = None
+    entra_tenant_id: Optional[str] = None
+
+# --- Integration Schemas ---
+class EntraIntegrationUpdate(BaseModel):
+    is_enabled: bool = False
+    tenant_id: Optional[str] = None
+    client_id: Optional[str] = None
+    # None 또는 '********': 기존 값 유지 / '': 삭제 / 그 외: 새 값으로 교체
+    client_secret: Optional[str] = None
+    mail_sender: Optional[str] = None
+
+class EntraIntegrationResponse(BaseModel):
+    is_enabled: bool
+    tenant_id: Optional[str] = None
+    client_id: Optional[str] = None
+    client_secret_set: bool
+    mail_sender: Optional[str] = None
+    updated_at: Optional[datetime] = None
+
+class IntegrationTestResponse(BaseModel):
+    status: str  # success / error
+    message: str
 
 # --- Attachment Schemas (Moved up) ---
 class AttachmentResponse(BaseModel):

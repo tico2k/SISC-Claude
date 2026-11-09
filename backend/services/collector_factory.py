@@ -2,7 +2,6 @@ from .base_collector import BaseCollector
 from .sentinel_collector import SentinelCollector
 from ..models import SiemType, SiemConfiguration
 from ..core.security import decrypt_secret
-import os
 
 class CollectorFactory:
     """
@@ -13,14 +12,12 @@ class CollectorFactory:
     def get_collector(config: SiemConfiguration) -> BaseCollector:
         if config.siem_type == SiemType.SENTINEL:
             # 복호화 처리 (데이터베이스에서 가져온 경우 암호화되어 있음)
+            # DB에서 읽은 값은 암호문, 연결 테스트에서 넘어온 값은 이미 평문
+            # 복호화 실패 시 암호문을 그대로 외부로 보내지 않도록 DecryptionError를 전달한다
             client_secret = config.client_secret
             if client_secret and client_secret.startswith("gAAAA"):
-                try:
-                    client_secret = decrypt_secret(client_secret)
-                except Exception as e:
-                    # 복호화 실패 시 원본을 사용 (Test Connection 등에서 이미 복호화된 평문이 들어올 수 있음)
-                    pass
-                
+                client_secret = decrypt_secret(client_secret)
+
             return SentinelCollector(
                 tenant_id=config.tenant_id,
                 client_id=config.client_id,

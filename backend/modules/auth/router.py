@@ -13,10 +13,8 @@ from ...core.dependencies import (
 )
 from ...core.exceptions import AuthenticationException, NotFoundException, ValidationException
 from ...core.logging_config import get_logger
-from ...core.entra_config import entra_settings
-from dotenv import load_dotenv
-import requests
-import os
+from ..integrations import services as integration_services
+from sqlalchemy import func
 from datetime import datetime, timezone
 
 logger = get_logger(__name__)
@@ -24,17 +22,9 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["Authentication"])
 
 @router.get("/config", response_model=schemas.AuthConfigResponse)
-def get_auth_config():
-    """현재 활성화된 인증 수단 및 설정 정보 반환"""
-    load_dotenv(override=True)
-    allow_local = os.getenv("ALLOW_LOCAL_LOGIN", "true").lower() == "true"
-    allow_entra = os.getenv("ALLOW_ENTRA_LOGIN", "true").lower() == "true"
-    default_method = os.getenv("DEFAULT_AUTH_METHOD", "LOCAL")
-    return {
-        "allow_local": allow_local,
-        "allow_entra": allow_entra,
-        "default_method": default_method
-    }
+def get_auth_config(db: Session = Depends(database.get_db)):
+    """현재 활성화된 인증 수단 반환 (Entra는 관리자 화면에서 연동을 설정한 경우에만 활성)"""
+    return integration_services.get_auth_config(db)
 
 @router.post("/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
 def register(
@@ -111,12 +101,10 @@ def login(
     # 사용자 조회
     user = db.query(models.User).filter(models.User.user_email == user_email).first()
     
-    # 최신 정책 반영을 위해 환경 변수 재로드
-    load_dotenv(override=True)
-    
-    # 자체 계정 로그인 제한 정책 확인
-    allow_local = os.getenv("ALLOW_LOCAL_LOGIN", "true").lower() == "true"
-    default_auth_method = os.getenv("DEFAULT_AUTH_METHOD", "LOCAL").upper()
+    # 자체 계정 로그인 제한 정책 확인 (Entra 미설정 시 기본 인증 방식은 LOCAL로 간주)
+    auth_config = integration_services.get_auth_config(db)
+    allow_local = auth_config.allow_local
+    default_auth_method = auth_config.default_method
     
     # 로컬 로그인이 비활성화되었거나, 기본 인증 방식이 LOCAL이 아닌 경우(예: ENTRA) 일반 사용자의 로그인을 제한
     if not allow_local or default_auth_method != "LOCAL":
@@ -149,8 +137,8 @@ def login(
 @router.post("/pwchange")
 def change_password(request: Request, pw_data: schemas.PasswordChange, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not verify_password(pw_data.old_password, current_user.hashed_password):
-        # Log failure?
-        raise HTTPException(status_code=400, detail="Incorrect old password")
+        logger.warning(f"비밀번호 변경 실패: 기존 비밀번호 불일치 - {current_user.user_email}")
+        raise ValidationException("기존 비밀번호가 올바르지 않습니다")
         
     current_user.hashed_password = get_password_hash(pw_data.new_password)
     
@@ -198,55 +186,45 @@ def get_login_history(
     # Regular users see their own
     return db.query(models.LoginHistory).filter(models.LoginHistory.user_id == current_user.user_id).order_by(models.LoginHistory.login_at.desc()).offset(skip).limit(limit).all()
 @router.post("/login/entra", response_model=schemas.Token)
+@limiter.limit("10/minute")
 def login_entra(
+    request: Request,
     token_data: schemas.EntraLoginRequest,
     db: Session = Depends(database.get_db)
 ):
     """
     Microsoft Entra ID(SSO)를 통한 로그인
-    - Frontend에서 획득한 Entra ID Access Token을 검증합니다.
-    - Graph API '/me'를 호출하여 사용자를 식별합니다.
+    - 관리자 화면에서 Entra 연동을 활성화한 경우에만 허용
+    - 프론트엔드가 받은 ID 토큰의 서명·대상(우리 앱)·테넌트·만료를 검증한 뒤 사용자를 식별
     """
-    access_token = token_data.access_token
-    
-    # Entra ID 검증 (Graph API /me 호출)
-    try:
-        response = requests.get(
-            "https://graph.microsoft.com/v1.0/me",
-            headers={"Authorization": f"Bearer {access_token}"}
-        )
-        
-        if response.status_code != 200:
-            logger.warning(f"Entra ID 로그인 실패: Graph API 권한 오류 - {response.text}")
-            raise AuthenticationException("Entra ID 인증에 실패했습니다")
-            
-        me_data = response.json()
-        user_email = me_data.get("userPrincipalName")
-        
-        if not user_email:
-            logger.error("Entra ID 응답에 email(UPN) 정보가 없습니다")
-            raise AuthenticationException("사용자 정보를 식별할 수 없습니다")
-            
-        # 로컬 DB에서 사용자 조회
-        user = db.query(models.User).filter(models.User.user_email == user_email).first()
-        
-        if not user:
-            logger.warning(f"Entra ID 로그인 실패: 등록되지 않은 사용자 - {user_email}")
-            # 전수 동기화 정책이므로, 여기에 없는 사용자는 접근 거부
-            raise AuthenticationException("등록되지 않은 사용자 계정입니다. 관리자에게 문의하세요.")
-            
-        # 로컬 액세스 토큰 생성
-        local_access_token = create_access_token(
-            data={"sub": user.user_email, "name": user.user_name, "role": user.role}
-        )
-        
-        # 마지막 로그인 시간 업데이트
-        user.last_login = datetime.now(timezone.utc)
-        db.commit()
-        
-        logger.info(f"Entra ID 로그인 성공: {user_email} (역할: {user.role})")
-        return {"access_token": local_access_token, "token_type": "bearer"}
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Entra ID 연동 중 네트워크 오류: {str(e)}")
-        raise AuthenticationException("인증 서비스 연결 중 오류가 발생했습니다")
+    entra = integration_services.get_entra_config(db)
+    if not entra.is_ready:
+        logger.warning("Entra ID 로그인 거부: 연동이 설정되지 않았거나 비활성 상태")
+        raise AuthenticationException("Entra ID 로그인이 활성화되어 있지 않습니다")
+
+    claims = integration_services.verify_entra_id_token(token_data.id_token, entra)
+    user_email = claims.get("preferred_username") or claims.get("upn") or claims.get("email")
+    if not user_email:
+        logger.error("Entra ID 토큰에 사용자 식별 정보(UPN/email)가 없습니다")
+        raise AuthenticationException("사용자 정보를 식별할 수 없습니다")
+
+    # 로컬 DB에서 사용자 조회 (UPN 대소문자 차이 무시)
+    user = db.query(models.User).filter(func.lower(models.User.user_email) == user_email.lower()).first()
+    if not user:
+        logger.warning(f"Entra ID 로그인 실패: 등록되지 않은 사용자 - {user_email}")
+        # 전수 동기화 정책이므로, 여기에 없는 사용자는 접근 거부
+        raise AuthenticationException("등록되지 않은 사용자 계정입니다. 관리자에게 문의하세요.")
+
+    local_access_token = create_access_token(
+        data={"sub": user.user_email, "name": user.user_name, "role": user.role}
+    )
+    user.last_login = datetime.now(timezone.utc)
+    db.add(models.SystemAuditLog(
+        actor_id=user.user_id,
+        action="LOGIN_ENTRA_SUCCESS",
+        ip_address=request.client.host if request.client else "Unknown"
+    ))
+    db.commit()
+
+    logger.info(f"Entra ID 로그인 성공: {user.user_email} (역할: {user.role})")
+    return {"access_token": local_access_token, "token_type": "bearer"}

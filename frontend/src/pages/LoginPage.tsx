@@ -3,8 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, Loader2, ChevronRight } from 'lucide-react';
-import { useMsal } from "@azure/msal-react";
-import { loginRequest } from "../config/msal";
+import { getMsalInstance, loginRequest } from "../config/msal";
 import { authService } from '../services/auth.service';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { AuthConfig } from '../types';
@@ -18,7 +17,6 @@ const LoginPage: React.FC = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const { instance } = useMsal();
     const [ssoLoading, setSsoLoading] = useState(false);
     const [config, setConfig] = useState<AuthConfig | null>(null);
     const [showLocal, setShowLocal] = useState(false);
@@ -33,8 +31,8 @@ const LoginPage: React.FC = () => {
                 }
             } catch (err) {
                 console.error(t('login.errorFetchConfig'), err);
-                // Fallback: 기본 오픈 모드
-                setConfig({ allow_local: true, allow_entra: true, default_method: 'LOCAL' });
+                // Fallback: 자체 로그인만 표시 (SSO는 서버가 연동 정보를 줄 때만 사용)
+                setConfig({ allow_local: true, allow_entra: false, default_method: 'LOCAL' });
                 setShowLocal(true);
             }
         };
@@ -61,13 +59,17 @@ const LoginPage: React.FC = () => {
         setError('');
 
         try {
+            if (!config?.entra_client_id || !config?.entra_tenant_id) {
+                throw new Error(t('login.errorStart'));
+            }
+            const instance = await getMsalInstance(config.entra_client_id, config.entra_tenant_id);
             // popup 대신 redirect 방식 사용
             await instance.loginRedirect({
                 ...loginRequest,
                 redirectStartPage: window.location.origin + '/auth-callback'
             });
             // loginRedirect는 즉시 반환되며, 페이지가 리다이렉션됩니다.
-            // 이후 처리는 App.tsx 또는 메인 컴포넌트에서 handleRedirectPromise()로 수행됩니다.
+            // 이후 처리는 AuthCallbackPage에서 handleRedirectPromise()로 수행됩니다.
         } catch (err: unknown) {
             console.error("Entra ID login initiation failed", err);
             setError(getErrorMessage(err) || t('login.errorStart'));

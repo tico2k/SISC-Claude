@@ -19,6 +19,7 @@ import EnvManagement from './pages/EnvManagement';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import SystemJobs from './pages/SystemJobs';
 import RolePermissions from './pages/RolePermissions';
+import IntegrationSettings from './pages/IntegrationSettings';
 
 
 function App() {
@@ -43,6 +44,7 @@ function App() {
               <Route path="/env" element={<EnvManagement />} />
               <Route path="/jobs" element={<SystemJobs />} />
               <Route path="/permissions" element={<RolePermissions />} />
+              <Route path="/integrations" element={<IntegrationSettings />} />
             </Route>
           </Route>
         </Routes>

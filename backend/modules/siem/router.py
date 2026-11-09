@@ -113,10 +113,11 @@ def test_siem_connection(
         except DecryptionError as e:
             raise ValidationException(str(e))
     elif secret and secret.startswith("gAAAA"):
+        # 암호문이 그대로 넘어온 경우: 복호화 실패를 숨기지 않고 알린다
         try:
             secret = decrypt_secret(secret)
-        except:
-            pass # 복호화 실패 시 원본 사용
+        except DecryptionError as e:
+            raise ValidationException(str(e))
             
     api_key = config.api_key
     if api_key == "********" and db_config:
@@ -125,10 +126,11 @@ def test_siem_connection(
         except DecryptionError as e:
             raise ValidationException(str(e))
     elif api_key and api_key.startswith("gAAAA"):
+        # 암호문이 그대로 넘어온 경우: 복호화 실패를 숨기지 않고 알린다
         try:
             api_key = decrypt_secret(api_key)
-        except:
-            pass
+        except DecryptionError as e:
+            raise ValidationException(str(e))
 
     if config.siem_type in [models.SiemType.SENTINEL, models.SiemType.ELK, models.SiemType.SPLUNK]:
         try:

@@ -30,11 +30,10 @@ class Settings(BaseSettings):
     # 로깅 설정
     LOG_LEVEL: str = "INFO"
     
-    # Microsoft Entra ID (Azure AD) 연동 설정
-    ENTRA_TENANT_ID: Optional[str] = None
-    ENTRA_CLIENT_ID: Optional[str] = None
-    ENTRA_CLIENT_SECRET: Optional[str] = None
-    ENTRA_REDIRECT_URI: Optional[str] = None
+    # Microsoft Entra ID 공용 엔드포인트 (테넌트·앱 정보는 설치 후 관리자 화면에서 DB에 저장)
+    # 국가별 클라우드 등 다른 엔드포인트가 필요할 때만 변경
+    ENTRA_AUTHORITY_HOST: str = "https://login.microsoftonline.com"
+    GRAPH_API_URL: str = "https://graph.microsoft.com"
     
     # 암호화 키
     ENCRYPTION_KEY: Optional[str] = None
@@ -43,7 +42,7 @@ class Settings(BaseSettings):
     INITIAL_ADMIN_EMAIL: str = "system@fleitlab.com"
     INITIAL_ADMIN_PASSWORD: str = "password123"
     
-    # 이메일 전송 방식 (SMTP, OUTLOOK)
+    # 이메일 전송 방식 (SMTP, OUTLOOK). OUTLOOK은 Entra 연동(관리자 화면)이 설정된 경우에만 동작
     MAIL_SENDER_TYPE: str = "SMTP"  # "SMTP" 또는 "OUTLOOK"
     
     # 이메일 (SMTP)
@@ -55,9 +54,6 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = "Fleit InsiderGuard"
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
-    
-    # 이메일 (Microsoft Graph - Outlook)
-    GRAPH_MAIL_SENDER: Optional[str] = None # 메일 발송용 공용 계정 (예: security@company.com)
     
     # 애플리케이션
     APP_NAME: str = "Fleit InsiderGuard - SICS"

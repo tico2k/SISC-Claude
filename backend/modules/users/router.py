@@ -5,7 +5,7 @@ from typing import List
 from ... import models, schemas
 from ...core import dependencies
 from ...core.database import get_db
-from ...core.exceptions import AuthorizationException, NotFoundException, ValidationException, DuplicateException, DatabaseException
+from ...core.exceptions import AuthorizationException, NotFoundException, ValidationException, DuplicateException, DatabaseException, BaseAPIException
 from . import services
 from ...core.logging_config import get_logger
 
@@ -182,20 +182,30 @@ def delete_user(
         raise DatabaseException("사용자 삭제 중 오류가 발생했습니다")
 @router.post("/users/sync-entra")
 def sync_users(
+    request: Request,
     current_user: models.User = Depends(dependencies.get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Microsoft Entra ID로부터 사용자 정보를 강제 동기화합니다 (시스템 관리자 전용)"""
+    """Microsoft Entra ID로부터 사용자 정보를 강제 동기화합니다 (시스템 관리자 전용, Entra 연동 설정 필요)"""
     if current_user.role not in [models.UserRole.SYSTEM_ADMIN]:
         logger.warning(f"권한 없는 사용자 동기화 시도: {current_user.user_email}")
         raise AuthorizationException("사용자 정보를 동기화할 권한이 없습니다")
     
     try:
         result = services.sync_users_from_entra(db)
+        db.add(models.SystemAuditLog(
+            actor_id=current_user.user_id,
+            action=f"USER_SYNC_ENTRA: total={result['total']}, created={result['created']}, updated={result['updated']}",
+            ip_address=request.client.host if request.client else "Unknown"
+        ))
+        db.commit()
         return {
             "message": "사용자 정보 동기화가 성공적으로 완료되었습니다",
             "stats": result
         }
+    except BaseAPIException:
+        # 연동 미설정(422)·외부 서비스 오류(503)는 그대로 전달
+        raise
     except Exception as e:
         logger.error(f"사용자 동기화 실패: {str(e)}", exc_info=True)
         raise DatabaseException("사용자 동기화 중 오류가 발생했습니다")

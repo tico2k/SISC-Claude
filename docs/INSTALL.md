@@ -112,6 +112,8 @@ cp .env.example .env
    - `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
 3. **DATABASE_URL**: 기본값은 SQLite(`sqlite:///./sql_app.db`)입니다.
 
+> Entra ID·SIEM 연동 정보는 `.env`에 넣지 않습니다. 설치 후 관리자 화면에서 설정합니다 (Part 3 참조).
+
 ### 1.4 프론트엔드 설정 (React + Vite)
 
 ```bash
@@ -148,6 +150,18 @@ npm run dev
 ```
 
 **성공 확인**: `https://localhost:5173` 에 접속하여 로그인하면 완료됩니다.
+
+---
+
+## Part 3. 설치 후 선택 연동 (Optional Integrations)
+
+설치 직후에는 자체 계정 로그인과 SMTP 메일만 동작하며, 외부 연동은 모두 꺼져 있습니다.
+조직 상황에 따라 필요한 연동만 관리자 화면에서 설정하세요. 저장 즉시 반영됩니다.
+
+- **Microsoft Entra ID** (SSO 로그인, 사용자 동기화, Outlook 메일): 시스템관리자 → `외부 연동 설정`
+- **SIEM (Microsoft Sentinel 등)**: 보안관리자·시스템관리자 → `SIEM 연동`
+
+앱 등록·권한 설정 절차는 **[선택 연동 가이드](./INTEGRATION_GUIDE.md)** 를 참고하세요.
 
 ---
 

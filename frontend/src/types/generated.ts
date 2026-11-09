@@ -31,7 +31,7 @@ export interface paths {
         };
         /**
          * Get Auth Config
-         * @description 현재 활성화된 인증 수단 및 설정 정보 반환
+         * @description 현재 활성화된 인증 수단 반환 (Entra는 관리자 화면에서 연동을 설정한 경우에만 활성)
          */
         get: operations["get_auth_config_config_get"];
         put?: never;
@@ -134,8 +134,8 @@ export interface paths {
         /**
          * Login Entra
          * @description Microsoft Entra ID(SSO)를 통한 로그인
-         *     - Frontend에서 획득한 Entra ID Access Token을 검증합니다.
-         *     - Graph API '/me'를 호출하여 사용자를 식별합니다.
+         *     - 관리자 화면에서 Entra 연동을 활성화한 경우에만 허용
+         *     - 프론트엔드가 받은 ID 토큰의 서명·대상(우리 앱)·테넌트·만료를 검증한 뒤 사용자를 식별
          */
         post: operations["login_entra_login_entra_post"];
         delete?: never;
@@ -595,7 +595,7 @@ export interface paths {
         put?: never;
         /**
          * Sync Users
-         * @description Microsoft Entra ID로부터 사용자 정보를 강제 동기화합니다 (시스템 관리자 전용)
+         * @description Microsoft Entra ID로부터 사용자 정보를 강제 동기화합니다 (시스템 관리자 전용, Entra 연동 설정 필요)
          */
         post: operations["sync_users_users_sync_entra_post"];
         delete?: never;
@@ -895,6 +895,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/integrations/entra": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Entra Integration
+         * @description Entra ID 연동 설정 조회 (시크릿은 설정 여부만 반환)
+         */
+        get: operations["get_entra_integration_integrations_entra_get"];
+        /**
+         * Update Entra Integration
+         * @description Entra ID 연동 설정 저장 (재시작 없이 즉시 반영)
+         */
+        put: operations["update_entra_integration_integrations_entra_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/integrations/entra/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Entra Integration
+         * @description 저장된 설정으로 Entra ID 앱 인증을 시험한다
+         */
+        post: operations["test_entra_integration_integrations_entra_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -961,6 +1005,10 @@ export interface components {
             allow_entra: boolean;
             /** Default Method */
             default_method: string;
+            /** Entra Client Id */
+            entra_client_id?: string | null;
+            /** Entra Tenant Id */
+            entra_tenant_id?: string | null;
         };
         /** BackgroundJobLogResponse */
         BackgroundJobLogResponse: {
@@ -1150,10 +1198,41 @@ export interface components {
          * @enum {string}
          */
         CaseType: "정보유출" | "보안위반" | "시스템접근" | "권한오남용";
+        /** EntraIntegrationResponse */
+        EntraIntegrationResponse: {
+            /** Is Enabled */
+            is_enabled: boolean;
+            /** Tenant Id */
+            tenant_id?: string | null;
+            /** Client Id */
+            client_id?: string | null;
+            /** Client Secret Set */
+            client_secret_set: boolean;
+            /** Mail Sender */
+            mail_sender?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** EntraIntegrationUpdate */
+        EntraIntegrationUpdate: {
+            /**
+             * Is Enabled
+             * @default false
+             */
+            is_enabled: boolean;
+            /** Tenant Id */
+            tenant_id?: string | null;
+            /** Client Id */
+            client_id?: string | null;
+            /** Client Secret */
+            client_secret?: string | null;
+            /** Mail Sender */
+            mail_sender?: string | null;
+        };
         /** EntraLoginRequest */
         EntraLoginRequest: {
-            /** Access Token */
-            access_token: string;
+            /** Id Token */
+            id_token: string;
         };
         /** EnvEntry */
         EnvEntry: {
@@ -1197,6 +1276,13 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** IntegrationTestResponse */
+        IntegrationTestResponse: {
+            /** Status */
+            status: string;
+            /** Message */
+            message: string;
         };
         /** JobRescheduleRequest */
         JobRescheduleRequest: {
@@ -3147,6 +3233,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": string[];
+                };
+            };
+        };
+    };
+    get_entra_integration_integrations_entra_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntraIntegrationResponse"];
+                };
+            };
+        };
+    };
+    update_entra_integration_integrations_entra_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntraIntegrationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntraIntegrationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_entra_integration_integrations_entra_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationTestResponse"];
                 };
             };
         };

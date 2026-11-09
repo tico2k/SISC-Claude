@@ -37,7 +37,8 @@
     "start": "Start",
     "stop": "Stop",
     "locale": "en-US",
-    "detectionDate": "Detection Date"
+    "detectionDate": "Detection Date",
+    "integrations": "Integrations"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -113,7 +114,8 @@
       "noTokenDetail": "Failed to obtain access token. Please check Azure app settings or cookies.",
       "generalError": "Error occurred during login processing",
       "processingTitle": "Authentication Processing",
-      "backToLogin": "Back to Login Screen"
+      "backToLogin": "Back to Login Screen",
+      "entraDisabled": "Entra ID sign-in is not enabled. Please contact your administrator."
     }
   },
   "login": {
@@ -406,7 +408,8 @@
         "users": "User Management",
         "env": "Env Management",
         "jobs": "Background Jobs",
-        "permissions": "Permissions"
+        "permissions": "Permissions",
+        "integrations": "Integrations"
       }
     },
     "user": {
@@ -598,31 +601,21 @@
       "ALLOWED_FILE_EXTENSIONS": "Allowed file upload extensions (with dot, comma separated)",
       "MAX_FILE_SIZE_MB": "Maximum single file upload size (in MB)",
       "UPLOAD_DIR": "Directory path where uploaded files are stored",
-      "ENTRA_TENANT_ID": "Microsoft Entra ID Tenant ID",
-      "ENTRA_CLIENT_ID": "Microsoft Entra ID Client (App) ID",
-      "ENTRA_CLIENT_SECRET": "Microsoft Entra ID Client Secret",
-      "ENTRA_REDIRECT_URI": "Redirect URI after Entra ID login",
       "ENABLE_EMAIL_NOTIFICATIONS": "Enable email notification feature (true/false)",
-      "MAIL_SENDER_TYPE": "Email delivery method (SMTP or OUTLOOK)",
-      "GRAPH_MAIL_SENDER": "Shared mailbox email address with Mail.Send permission",
+      "MAIL_SENDER_TYPE": "Mail delivery method (SMTP or OUTLOOK; OUTLOOK requires Entra in Integrations)",
       "APP_NAME": "Application Name (SICS)",
       "APP_URL": "Frontend URL used for links in emails",
       "LOG_LEVEL": "Log recording level (DEBUG, INFO, WARNING, ERROR)",
       "DEBUG": "Debug mode activation flag (true/false)",
       "INITIAL_ADMIN_EMAIL": "Initial administrator email created on first run",
       "INITIAL_ADMIN_PASSWORD": "Initial administrator password created on first run",
-      "REDIS_URL": "Redis server connection URL",
-      "CELERY_BROKER_URL": "Celery message broker URL (Redis, etc.)",
-      "CELERY_RESULT_BACKEND": "Celery task result storage backend URL",
       "SMTP_HOST": "SMTP host address for outbound emails",
       "SMTP_PORT": "SMTP port number for outbound emails",
       "SMTP_USER": "SMTP authentication user account",
       "SMTP_PASSWORD": "SMTP authentication user password",
       "SMTP_FROM_EMAIL": "Outbound sender email address",
       "SMTP_FROM_NAME": "Outbound sender display name",
-      "VITE_API_URL": "API server base URL for frontend client",
-      "VITE_ENTRA_CLIENT_ID": "Entra ID Client ID for frontend",
-      "VITE_ENTRA_TENANT_ID": "Entra ID Tenant ID for frontend"
+      "VITE_API_URL": "API server base URL for frontend client"
     }
   },
   "register": {
@@ -648,5 +641,29 @@
     "mismatch": "New passwords do not match.",
     "success": "Password has been successfully changed.",
     "fail": "Password change failed. Please check your current password."
+  },
+  "integrations": {
+    "title": "Integrations",
+    "description": "Configure external service integrations for your organization after installation. Changes apply immediately without a restart.",
+    "saved": "Integration settings saved.",
+    "test": "Test connection",
+    "testHint": "The connection test uses the saved settings. Save first.",
+    "entra": {
+      "title": "Microsoft Entra ID",
+      "description": "Used for SSO sign-in, user synchronization and Outlook mail delivery.",
+      "enabled": "Enable integration",
+      "tenantId": "Directory (tenant) ID",
+      "clientId": "Application (client) ID",
+      "clientSecret": "Client secret",
+      "secretSet": "Set (enter only to change)",
+      "secretOptional": "Can be left empty if only SSO is used",
+      "clearSecret": "Delete stored secret",
+      "mailSender": "Outlook sender mailbox (optional)",
+      "guideTitle": "Required Entra app registration settings",
+      "guideRedirect": "Redirect URI (platform: SPA):",
+      "guideSso": "SSO sign-in: no additional API permissions (openid, profile, email)",
+      "guideSync": "User sync: Microsoft Graph User.Read.All (application permission, admin consent) + client secret",
+      "guideMail": "Outlook mail: Microsoft Graph Mail.Send (application permission, admin consent) + client secret + MAIL_SENDER_TYPE=OUTLOOK in .env"
+    }
   }
 }

@@ -294,16 +294,9 @@ ENV_METADATA = {
     "MAX_FILE_SIZE_MB": {"category": "[4] 파일 업로드 설정", "description": "단일 파일 최대 업로드 크기 (단위: MB)"},
     "UPLOAD_DIR": {"category": "[4] 파일 업로드 설정", "description": "업로드된 파일이 저장될 디렉토리 경로"},
     
-    # [5] Microsoft Entra ID (Azure AD) 연동 설정
-    "ENTRA_TENANT_ID": {"category": "[5] Microsoft Entra ID (Azure AD) 연동 설정", "description": "Microsoft Entra ID 테넌트 ID"},
-    "ENTRA_CLIENT_ID": {"category": "[5] Microsoft Entra ID (Azure AD) 연동 설정", "description": "Microsoft Entra ID 클라이언트(앱) ID"},
-    "ENTRA_CLIENT_SECRET": {"category": "[5] Microsoft Entra ID (Azure AD) 연동 설정", "description": "Microsoft Entra ID 클라이언트 시크릿"},
-    "ENTRA_REDIRECT_URI": {"category": "[5] Microsoft Entra ID (Azure AD) 연동 설정", "description": "Entra ID 로그인 후 리다이렉트될 URI"},
-    
     # [6] 이메일 알림 설정
     "ENABLE_EMAIL_NOTIFICATIONS": {"category": "[6] 이메일 알림 설정", "description": "이메일 알림 기능 활성화 여부 (true/false)"},
-    "MAIL_SENDER_TYPE": {"category": "[6] 이메일 알림 설정", "description": "이메일 전송 방식 (SMTP 또는 OUTLOOK)"},
-    "GRAPH_MAIL_SENDER": {"category": "[6] 이메일 알림 설정", "description": "발송 권한(Mail.Send)이 있는 실제 공용 사함함 주소"},
+    "MAIL_SENDER_TYPE": {"category": "[6] 이메일 알림 설정", "description": "이메일 전송 방식 (SMTP 또는 OUTLOOK, OUTLOOK은 연동 설정에서 Entra 구성 필요)"},
     
     # [7] 애플리케이션 및 로깅
     "APP_NAME": {"category": "[7] 애플리케이션 및 로깅", "description": "애플리케이션 명칭 (SICS)"},
@@ -315,11 +308,6 @@ ENV_METADATA = {
     "INITIAL_ADMIN_EMAIL": {"category": "[8] 초기 관리자 계정 생성 정보", "description": "최초 설치 시 생성될 관리자 이메일"},
     "INITIAL_ADMIN_PASSWORD": {"category": "[8] 초기 관리자 계정 생성 정보", "description": "최초 설치 시 생성될 관리자 비밀번호"},
 
-    # Infrastructure & Queue
-    "REDIS_URL": {"category": "Infrastructure", "description": "Redis 서버 접속 URL"},
-    "CELERY_BROKER_URL": {"category": "Queue", "description": "Celery 메시지 브로커 URL (Redis 등)"},
-    "CELERY_RESULT_BACKEND": {"category": "Queue", "description": "Celery 태스크 결과 저장 백엔드 URL"},
-    
     # Email Details (Internal)
     "SMTP_HOST": {"category": "Email (SMTP 상세)", "description": "이메일 발송용 SMTP 호스트 주소"},
     "SMTP_PORT": {"category": "Email (SMTP 상세)", "description": "이메일 발송용 SMTP 포트 번호"},
@@ -330,8 +318,7 @@ ENV_METADATA = {
     
     # Frontend
     "VITE_API_URL": {"category": "Network (Frontend)", "description": "프론트엔드에서 바라볼 API 서버 주소"},
-    "VITE_ENTRA_CLIENT_ID": {"category": "Authentication (Frontend)", "description": "프론트엔드 Entra ID 클라이언트 ID"},
-    "VITE_ENTRA_TENANT_ID": {"category": "Authentication (Frontend)", "description": "프론트엔드 Entra ID 테넌트 ID"},
+    # Entra ID·Sentinel 연동 정보는 .env가 아니라 관리자 화면(연동 설정 / SIEM 연동)에서 DB에 저장한다
 }
 
 def is_key_sensitive(key: str) -> bool:

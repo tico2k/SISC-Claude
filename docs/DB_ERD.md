@@ -151,6 +151,17 @@ erDiagram
         datetime updated_at "수정일"
     }
 
+    integration_setting {
+        string provider PK "연동 종류 (ENTRA)"
+        boolean is_enabled "사용 여부"
+        string tenant_id "테넌트 ID"
+        string client_id "클라이언트 ID"
+        string client_secret "클라이언트 시크릿 (Fernet 암호화 보관)"
+        string mail_sender "Outlook 발송 사서함"
+        int updated_by FK "마지막 수정자 (users)"
+        datetime updated_at "수정일"
+    }
+
     daily_statistic {
         datetime stat_date PK "통계 일자 (Primary Key)"
         int unclassified_count "미확인 건수"
@@ -250,6 +261,12 @@ erDiagram
 
 - **SiemConfiguration** 내 크레덴셜 정보(`client_secret`, `api_key`)는 SQLAlchemy ORM을 타기 직전 서버측 로직(`backend.core.encryption`)에 의해 AES-256 Fernet 알고리즘으로 암호화되어 DB상 복호화 불가능한 상태로 보관됩니다. (보안 고도화 요구사항 반영)
 - `field_mapping` 컬럼은 JSON 타입으로 구성되어, 시스템 고정 스키마 외에 다양한 이기종 SIEM(Sentinel, Splunk, Elastic)에서 전달되는 가변 로그 필드들을 자유롭게 저장할 수 있는 확장성을 확보합니다.
+
+### Integration Setting (선택 연동)
+
+- **IntegrationSetting**: 설치 후 관리자가 설정하는 외부 연동 정보입니다. 연동 종류(`provider`)마다 1행이며 현재는 `ENTRA`(SSO·사용자 동기화·Outlook 메일)만 사용합니다.
+- 행이 없거나 `is_enabled=false`이면 Entra 관련 기능은 꺼진 상태로 동작합니다. `.env`/프론트 빌드 변수에는 연동 정보를 두지 않습니다.
+- `client_secret`은 Fernet으로 암호화되어 저장되며 API 응답에는 설정 여부(`client_secret_set`)만 내려갑니다. 마이그레이션: `0003`.
 
 ### Dynamic System Configuration (v1.4.0)
 
