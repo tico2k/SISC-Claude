@@ -7,30 +7,18 @@ from .base import MailProvider
 logger = logging.getLogger(__name__)
 
 class GraphMailProvider(MailProvider):
-    """Microsoft Graph API 기반 이메일 발송"""
-    
-    def __init__(self):
-        self.tenant_id = settings.ENTRA_TENANT_ID
-        self.client_id = settings.ENTRA_CLIENT_ID
-        self.client_secret = settings.ENTRA_CLIENT_SECRET
-        self.sender_email = settings.GRAPH_MAIL_SENDER or settings.SMTP_FROM_EMAIL
-        
-    def _get_access_token(self) -> Optional[str]:
-        """Client Credentials Flow를 통한 액세스 토큰 획득"""
-        url = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
-        data = {
-            "client_id": self.client_id,
-            "scope": "https://graph.microsoft.com/.default",
-            "client_secret": self.client_secret,
-            "grant_type": "client_credentials",
-        }
+    """Microsoft Graph API 기반 이메일 발송 (Entra 연동 설정은 발송 시점에 DB에서 읽음)"""
+
+    def _load_entra_config(self):
+        # core → modules 순환 import를 피하려고 함수 안에서 import
+        from backend.core.database import SessionLocal
+        from backend.modules.integrations.services import get_entra_config
+
+        db = SessionLocal()
         try:
-            response = requests.post(url, data=data, timeout=10)
-            response.raise_for_status()
-            return response.json().get("access_token")
-        except Exception as e:
-            logger.error(f"Failed to get Microsoft Graph access token: {str(e)}")
-            return None
+            return get_entra_config(db)
+        finally:
+            db.close()
 
     def send_mail(
         self,
@@ -44,17 +32,24 @@ class GraphMailProvider(MailProvider):
             logger.info("Email notifications are disabled in settings.")
             return True
 
-        if not all([self.tenant_id, self.client_id, self.client_secret]):
-            logger.warning("Microsoft Graph settings (Tenant/Client ID/Secret) are missing.")
+        from backend.modules.auth.entra_service import get_app_access_token
+
+        entra = self._load_entra_config()
+        if not entra.has_app_credentials:
+            logger.warning("MAIL_SENDER_TYPE=OUTLOOK이지만 Entra 연동(테넌트·클라이언트 ID·시크릿)이 설정되지 않아 메일을 보내지 않습니다.")
             return False
 
-        token = self._get_access_token()
-        if not token:
+        try:
+            token = get_app_access_token(entra)
+        except Exception as e:
+            logger.error(f"Failed to get Microsoft Graph access token: {e}")
             return False
+
+        sender_email = entra.mail_sender or settings.SMTP_FROM_EMAIL
 
         # Graph API sendMail 엔드포인트
         # 특정 사용자 계정의 사함함을 통해 발송 (Application 권한 필요: Mail.Send)
-        url = f"https://graph.microsoft.com/v1.0/users/{self.sender_email}/sendMail"
+        url = f"{settings.GRAPH_API_URL}/v1.0/users/{sender_email}/sendMail"
         
         headers = {
             "Authorization": f"Bearer {token}",

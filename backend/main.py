@@ -12,6 +12,7 @@ from .modules.siem.router import router as siem_router
 from .modules.users.router import router as users_router
 from .modules.audit.router import router as audit_router
 from .modules.system.router import router as system_router
+from .modules.integrations.router import router as integrations_router
 from . import models
 from .core import database
 from .core.exceptions import BaseAPIException
@@ -83,11 +84,7 @@ async def create_initial_menu_permissions():
     
     db = SessionLocal()
     try:
-        # 이미 권한 설정이 존재하는지 확인
-        if db.query(models.MenuPermission).count() > 0:
-            return
-
-        logger.info("기본 메뉴 권한 초기 시딩 시작...")
+        logger.debug("기본 메뉴 권한 시딩 확인...")
         
         # 권한 규칙 정의 (메뉴 경로: [허용된 역할들])
         menu_rules = {
@@ -99,14 +96,19 @@ async def create_initial_menu_permissions():
             "/users": [models.UserRole.SYSTEM_ADMIN],
             "/env": [models.UserRole.SECURITY_ADMIN, models.UserRole.AUDIT_TEAM, models.UserRole.SYSTEM_ADMIN],
             "/jobs": [models.UserRole.SYSTEM_ADMIN],
-            "/permissions": [models.UserRole.SYSTEM_ADMIN], # 새 메뉴 추가
+            "/permissions": [models.UserRole.SYSTEM_ADMIN],
+            "/integrations": [models.UserRole.SYSTEM_ADMIN],
         }
 
         roles = [models.UserRole.USER, models.UserRole.SECURITY_ADMIN, models.UserRole.AUDIT_TEAM, models.UserRole.SYSTEM_ADMIN]
         
+        # 없는 (역할, 메뉴) 조합만 추가 — 관리자가 바꾼 기존 설정은 유지하고, 새 메뉴는 기존 설치에도 반영
+        existing = {(p.role, p.menu_path) for p in db.query(models.MenuPermission).all()}
         new_permissions = []
         for path, allowed_roles in menu_rules.items():
             for role in roles:
+                if (role, path) in existing:
+                    continue
                 new_permissions.append(
                     models.MenuPermission(
                         role=role,
@@ -115,9 +117,11 @@ async def create_initial_menu_permissions():
                     )
                 )
         
+        if not new_permissions:
+            return
         db.add_all(new_permissions)
         db.commit()
-        logger.info(f"총 {len(new_permissions)}개의 메뉴 권한 설정이 완료되었습니다.")
+        logger.info(f"메뉴 권한 {len(new_permissions)}건을 추가했습니다.")
         
     except Exception as e:
         db.rollback()
@@ -277,6 +281,7 @@ app.include_router(siem_router)
 app.include_router(users_router)
 app.include_router(audit_router)
 app.include_router(system_router)
+app.include_router(integrations_router)
 
 
 @app.get("/")
@@ -285,7 +290,7 @@ def read_root():
     return {
         "message": "Welcome to Fleit InsiderGuard SICS Backend",
         "status": "healthy",
-        "version": "1.0.0"
+        "version": settings.APP_VERSION
     }
 
 

@@ -9,7 +9,7 @@
 
 - **데이터베이스 백업**: 업그레이드를 시작하기 전에 현재 사용 중인 데이터베이스 파일(`sqlite:///./sql_app.db` 등)을 반드시 백업하십시오.
 - **설정 파일 백업**: 환경 변수가 저장된 `.env` 파일을 복사하여 안전한 곳에 보관하세요.
-- **Azure AD 권한 설정**: 이메일 발송 기능을 사용하는 경우, Azure Portal에서 **Mail.Send (Application)** 권한을 부여하고 관리자 동의를 해야 합니다. (상세 내용은 [Azure 설정 가이드](./azure_setup_guide.md) 참조)
+- **Entra ID 연동 정보 이전 (2.1.0 이후)**: Entra ID 정보는 더 이상 `.env`/`frontend/.env`에서 읽지 않습니다. 업그레이드 전에 기존 `ENTRA_TENANT_ID`·`ENTRA_CLIENT_ID`·`ENTRA_CLIENT_SECRET`·`GRAPH_MAIL_SENDER` 값을 확인해 두고, 업그레이드 후 `외부 연동 설정` 화면에 입력하세요. ([선택 연동 가이드](./INTEGRATION_GUIDE.md) 참조)
 
 ---
 
@@ -39,22 +39,19 @@ git pull origin main
 2. **.env 환경 변수 확인 및 추가**: 기존 사용 중이던 `.env` 설정에 아래의 신규 항목들을 확인/추가합니다. (프론트엔드의 `환경 변수 관리` 메뉴에서도 수정 가능)
 
    ```env
-   # 이메일 전송 방식 설정 (필요 시)
-   MAIL_SENDER_TYPE=OUTLOOK
+   # 이메일 전송 방식 (SMTP 기본, OUTLOOK은 외부 연동 설정에서 Entra 구성 후 사용)
+   MAIL_SENDER_TYPE=SMTP
    ENABLE_EMAIL_NOTIFICATIONS=true
-
-   # 메일 발송용 공용 계정 (실제 사서함이 존재하는 계정)
-   GRAPH_MAIL_SENDER=your-email@company.com
 
    # 메일 본문 링크에 쓰는 프론트엔드 접속 주소 (미설정 시 CORS_ORIGINS의 첫 주소)
    # 웹 UI는 기존 키만 수정할 수 있으므로 이 키는 .env에 직접 추가
    APP_URL=https://sics.your-company.com
-
-   # 기존 로그인용 Entra 정보 (없을 경우에만 입력)
-   ENTRA_TENANT_ID=031e97aa-xxxx-xxxx-xxxx
-   ENTRA_CLIENT_ID=3f329bad-xxxx-xxxx-xxxx
-   ENTRA_CLIENT_SECRET=your-secret-key
    ```
+
+3. **더 이상 쓰지 않는 키 정리**: 아래 키는 삭제합니다. 값은 `외부 연동 설정` 화면으로 옮깁니다.
+   - `.env`: `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`, `ENTRA_REDIRECT_URI`, `GRAPH_MAIL_SENDER`, `ALLOW_ENTRA_LOGIN`
+   - `frontend/.env`: `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_TENANT_ID`
+   - 스키마 변경(`integration_setting` 테이블)은 `alembic upgrade head`로 적용합니다
 
 ---
 

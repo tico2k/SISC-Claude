@@ -175,7 +175,7 @@ def create_single_case(session: Session, c_status: CaseStatus, c_result: Optiona
         case_status=c_status,
         priority=c_priority,
         summary=template["admin_req"] if c_status != CaseStatus.UNCLASSIFIED else "SIEM 실시간 보안 관제에서 자동 수집된 이상 징후 이벤트입니다.",
-        original_log_link=f"https://portal.azure.com/#incident/{random.randint(100000, 999999)}"
+        original_log_link=f"https://siem.example.com/incidents/{random.randint(100000, 999999)}"
     )
 
     if c_status in [CaseStatus.APPROVE, CaseStatus.REJECT, CaseStatus.CLOSE]:

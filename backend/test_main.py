@@ -613,3 +613,210 @@ def test_mail_factory_selects_provider_by_setting(monkeypatch):
         monkeypatch.setattr(MailFactory, "_instance", None)
         monkeypatch.setattr(settings, "MAIL_SENDER_TYPE", sender_type)
         assert isinstance(MailFactory.get_provider(), cls)
+
+
+# --- 선택 연동(Entra ID / SIEM): 설치 직후에는 꺼져 있고 관리자가 설정한 뒤에만 동작 ---
+
+TEST_TENANT = "11111111-2222-3333-4444-555555555555"
+TEST_CLIENT = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+
+def _sysadmin_headers():
+    return {"Authorization": f"Bearer {get_sysadmin_token()}"}
+
+
+def _enable_entra(secret=None):
+    body = {"is_enabled": True, "tenant_id": TEST_TENANT, "client_id": TEST_CLIENT}
+    if secret is not None:
+        body["client_secret"] = secret
+    res = client.put("/integrations/entra", json=body, headers=_sysadmin_headers())
+    assert res.status_code == 200, res.text
+    return res
+
+
+@pytest.fixture
+def entra_keys(monkeypatch):
+    """테스트용 RSA 키로 ID 토큰을 서명하고, JWKS 조회를 해당 공개키로 대체"""
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives import serialization
+    from jose import jwk, jwt
+    from backend.modules.integrations import services as integ
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+    ).decode()
+    public_pem = key.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode()
+    public_jwk = jwk.construct(public_pem, "RS256").to_dict()
+    public_jwk.update({"kid": "test-kid", "use": "sig"})
+    monkeypatch.setattr(integ, "_get_jwks", lambda tenant_id, force_refresh=False: {"keys": [public_jwk]})
+
+    def make_token(**overrides):
+        import time
+        claims = {
+            "aud": TEST_CLIENT, "tid": TEST_TENANT,
+            "iss": f"https://login.microsoftonline.com/{TEST_TENANT}/v2.0",
+            "preferred_username": "SysAdmin@Example.com",
+            "iat": int(time.time()), "exp": int(time.time()) + 600,
+        }
+        claims.update(overrides)
+        return jwt.encode(claims, private_pem, algorithm="RS256", headers={"kid": "test-kid"})
+
+    return make_token
+
+
+def test_auth_config_entra_disabled_by_default():
+    res = client.get("/config")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["allow_entra"] is False
+    assert data["default_method"] == "LOCAL"
+    assert data["entra_client_id"] is None and data["entra_tenant_id"] is None
+
+
+def test_entra_login_rejected_when_not_configured(entra_keys):
+    res = client.post("/login/entra", json={"id_token": entra_keys()})
+    assert res.status_code == 401
+
+
+def test_integration_settings_require_system_admin(wf):
+    assert client.get("/integrations/entra", headers=wf["h"]["admin"]).status_code == 403
+    assert client.put("/integrations/entra", json={"is_enabled": False}, headers=wf["h"]["owner"]).status_code == 403
+
+
+def test_integration_save_masks_secret_and_enables_sso():
+    res = _enable_entra(secret="super-secret-value")
+    data = res.json()
+    assert data["client_secret_set"] is True
+    assert "super-secret-value" not in res.text
+
+    # 저장된 시크릿은 암호화되어 있고, 감사로그에는 값이 남지 않는다
+    db = TestingSessionLocal()
+    try:
+        row = db.get(models.IntegrationSetting, "ENTRA")
+        assert row.client_secret and row.client_secret != "super-secret-value"
+        actions = [a.action for a in db.query(models.SystemAuditLog).all()]
+        assert any(a.startswith("INTEGRATION_ENTRA_UPDATED") for a in actions)
+        assert not any("super-secret-value" in a or TEST_TENANT in a for a in actions)
+        encrypted = row.client_secret
+    finally:
+        db.close()
+
+    # 마스크 값으로 다시 저장하면 기존 시크릿 유지
+    _enable_entra(secret="********")
+    db = TestingSessionLocal()
+    try:
+        assert db.get(models.IntegrationSetting, "ENTRA").client_secret == encrypted
+    finally:
+        db.close()
+
+    config = client.get("/config").json()
+    assert config["allow_entra"] is True
+    assert config["entra_client_id"] == TEST_CLIENT and config["entra_tenant_id"] == TEST_TENANT
+
+
+@pytest.mark.parametrize("body", [
+    {"is_enabled": True, "tenant_id": "", "client_id": TEST_CLIENT},                  # 활성화인데 테넌트 없음
+    {"is_enabled": False, "tenant_id": "evil.com/x?", "client_id": TEST_CLIENT},       # GUID 아님 (URL 주입 방지)
+    {"is_enabled": False, "tenant_id": TEST_TENANT, "client_id": "not-a-guid"},
+    {"is_enabled": False, "mail_sender": "not-an-email"},
+])
+def test_integration_save_validates_input(body):
+    res = client.put("/integrations/entra", json=body, headers=_sysadmin_headers())
+    assert res.status_code == 422
+
+
+def test_entra_login_with_valid_id_token(entra_keys):
+    _enable_entra()
+    res = client.post("/login/entra", json={"id_token": entra_keys()})
+    assert res.status_code == 200, res.text
+    assert res.json()["token_type"] == "bearer"
+    db = TestingSessionLocal()
+    try:
+        assert db.query(models.SystemAuditLog).filter_by(action="LOGIN_ENTRA_SUCCESS").count() == 1
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize("overrides", [
+    {"aud": "99999999-9999-9999-9999-999999999999"},                       # 다른 앱용 토큰
+    {"tid": "99999999-9999-9999-9999-999999999999"},                       # 다른 테넌트
+    {"iss": "https://login.microsoftonline.com/other/v2.0"},
+    {"exp": 1},                                                            # 만료
+    {"preferred_username": "nobody@example.com"},                          # 미등록 사용자
+])
+def test_entra_login_rejects_invalid_tokens(entra_keys, overrides):
+    _enable_entra()
+    res = client.post("/login/entra", json={"id_token": entra_keys(**overrides)})
+    assert res.status_code == 401
+
+
+def test_entra_login_rejects_token_signed_by_other_key(entra_keys):
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives import serialization
+    from jose import jwt
+    _enable_entra()
+    other = rsa.generate_private_key(public_exponent=65537, key_size=2048).private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+    ).decode()
+    good_claims = jwt.get_unverified_claims(entra_keys())
+    forged = jwt.encode(good_claims, other, algorithm="RS256", headers={"kid": "test-kid"})
+    assert client.post("/login/entra", json={"id_token": forged}).status_code == 401
+
+
+def test_entra_user_sync_requires_configuration():
+    res = client.post("/users/sync-entra", headers=_sysadmin_headers())
+    assert res.status_code == 422
+
+
+def test_graph_mail_not_sent_without_entra(monkeypatch):
+    from backend.core import database as core_db
+    from backend.core.config import settings
+    from backend.core.mail.graph_provider import GraphMailProvider
+    monkeypatch.setattr(core_db, "SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr(settings, "ENABLE_EMAIL_NOTIFICATIONS", True)
+    assert GraphMailProvider().send_mail("a@example.com", "s", "c") is False
+
+
+def test_password_change_wrong_old_password_returns_client_error():
+    res = client.post("/pwchange", json={"old_password": "wrong", "new_password": "x"}, headers=_sysadmin_headers())
+    assert res.status_code == 422
+
+
+def test_menu_seeding_adds_missing_paths_and_keeps_existing(monkeypatch):
+    import asyncio
+    from backend.core import database as core_db
+    from backend.main import create_initial_menu_permissions
+    monkeypatch.setattr(core_db, "SessionLocal", TestingSessionLocal)
+
+    db = TestingSessionLocal()
+    db.add(models.MenuPermission(role=models.UserRole.USER, menu_path="/dashboard", is_visible=False))
+    db.commit()
+    db.close()
+
+    asyncio.run(create_initial_menu_permissions())
+
+    db = TestingSessionLocal()
+    try:
+        perms = {(p.role, p.menu_path): p.is_visible for p in db.query(models.MenuPermission).all()}
+        assert perms[(models.UserRole.USER, "/dashboard")] is False       # 기존 설정 유지
+        assert perms[(models.UserRole.SYSTEM_ADMIN, "/integrations")] is True
+        assert perms[(models.UserRole.SECURITY_ADMIN, "/integrations")] is False
+    finally:
+        db.close()
+
+
+def test_siem_sync_fails_without_field_mapping(monkeypatch):
+    from backend.tasks import siem_tasks
+    monkeypatch.setattr(siem_tasks, "SessionLocal", TestingSessionLocal)
+    db = TestingSessionLocal()
+    cfg = models.SiemConfiguration(siem_type=models.SiemType.SENTINEL, name="t", host_url="", field_mapping=None, is_active=True)
+    db.add(cfg)
+    db.commit()
+    siem_id = cfg.siem_id
+    db.close()
+
+    result = siem_tasks.sync_siem_logs(siem_id, is_manual=True)
+    assert result["status"] == "error" and "필드 매핑" in result["message"]

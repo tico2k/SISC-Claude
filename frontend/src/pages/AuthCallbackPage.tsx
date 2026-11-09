@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useMsal } from '@azure/msal-react';
+import { getMsalInstance, loginRequest } from '../config/msal';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { authService } from '../services/auth.service';
@@ -8,7 +8,6 @@ import { getApiErrorBody, getErrorMessage } from '../utils/error';
 
 const AuthCallbackPage: React.FC = () => {
     const { t } = useTranslation();
-    const { instance, inProgress } = useMsal();
     const navigate = useNavigate();
     const { setToken } = useAuth();
     const [statusKey, setStatusKey] = useState<string>("waiting");
@@ -16,60 +15,65 @@ const AuthCallbackPage: React.FC = () => {
     const hasProcessed = useRef(false);
 
     useEffect(() => {
-        // MSAL v3 handles redirect response via handleRedirectPromise
-        if (inProgress === "none" && !hasProcessed.current) {
-            hasProcessed.current = true;
-            setStatusKey("processingResponse");
+        if (hasProcessed.current) return;
+        hasProcessed.current = true;
+        setStatusKey("processingResponse");
 
-            instance.handleRedirectPromise()
-                .then(async (response) => {
-                    let accessToken = response?.accessToken;
+        const processRedirect = async () => {
+            // 연동 정보는 서버에서 받는다 (Entra가 비활성이면 SSO 처리 불가)
+            const authConfig = await authService.getAuthConfig();
+            if (!authConfig.allow_entra || !authConfig.entra_client_id || !authConfig.entra_tenant_id) {
+                setStatusKey("generalError");
+                setErrorMsg(t('auth.callback.entraDisabled'));
+                return;
+            }
+            const instance = await getMsalInstance(authConfig.entra_client_id, authConfig.entra_tenant_id);
+            const response = await instance.handleRedirectPromise();
+            let idToken = response?.idToken;
 
-                    // 만약 redirect response에 토큰이 없다면 (캐시된 세션이거나 해시가 이미 소비된 경우)
-                    if (!accessToken) {
-                        const allAccounts = instance.getAllAccounts();
-                        if (allAccounts.length > 0) {
-                            setStatusKey("checkingSession");
-                            try {
-                                const silentResponse = await instance.acquireTokenSilent({
-                                    scopes: ["User.Read"],
-                                    account: allAccounts[0]
-                                });
-                                accessToken = silentResponse.accessToken;
-                            } catch (error: unknown) {
-                                console.error("Silent token acquisition failed:", error);
-                                setErrorMsg(`Silent Token Error: ${getErrorMessage(error)}`);
-                            }
-                        }
+            // redirect 응답에 토큰이 없다면 (캐시된 세션이거나 해시가 이미 소비된 경우)
+            if (!idToken) {
+                const allAccounts = instance.getAllAccounts();
+                if (allAccounts.length > 0) {
+                    setStatusKey("checkingSession");
+                    try {
+                        const silentResponse = await instance.acquireTokenSilent({
+                            ...loginRequest,
+                            account: allAccounts[0]
+                        });
+                        idToken = silentResponse.idToken;
+                    } catch (error: unknown) {
+                        console.error("Silent token acquisition failed:", error);
+                        setErrorMsg(`Silent Token Error: ${getErrorMessage(error)}`);
                     }
+                }
+            }
 
-                    if (accessToken) {
-                        setStatusKey("creatingBackendSession");
-                        try {
-                            const authData = await authService.loginEntra({
-                                access_token: accessToken
-                            });
+            if (!idToken) {
+                setStatusKey("noAuthInfo");
+                setErrorMsg(t('auth.callback.noTokenDetail'));
+                return;
+            }
 
-                            setToken(authData.access_token);
-                            setStatusKey("completed");
-                            setTimeout(() => navigate('/dashboard', { replace: true }), 500);
-                        } catch (apiError: unknown) {
-                            console.error("Backend auth failed:", apiError);
-                            setStatusKey("serverError");
-                            setErrorMsg(`Backend Error: ${getApiErrorBody(apiError).detail || getErrorMessage(apiError)}`);
-                        }
-                    } else {
-                        setStatusKey("noAuthInfo");
-                        setErrorMsg(t('auth.callback.noTokenDetail'));
-                    }
-                })
-                .catch((error: unknown) => {
-                    console.error("MSAL redirect promise error:", error);
-                    setStatusKey("generalError");
-                    setErrorMsg(`MSAL Error: ${getErrorMessage(error)}`);
-                });
-        }
-    }, [inProgress, instance, navigate, setToken, t]);
+            setStatusKey("creatingBackendSession");
+            try {
+                const authData = await authService.loginEntra({ id_token: idToken });
+                setToken(authData.access_token);
+                setStatusKey("completed");
+                setTimeout(() => navigate('/dashboard', { replace: true }), 500);
+            } catch (apiError: unknown) {
+                console.error("Backend auth failed:", apiError);
+                setStatusKey("serverError");
+                setErrorMsg(`Backend Error: ${getApiErrorBody(apiError).detail || getErrorMessage(apiError)}`);
+            }
+        };
+
+        processRedirect().catch((error: unknown) => {
+            console.error("MSAL redirect promise error:", error);
+            setStatusKey("generalError");
+            setErrorMsg(`MSAL Error: ${getErrorMessage(error)}`);
+        });
+    }, [navigate, setToken, t]);
 
     const getStatusText = (key: string) => {
         switch (key) {

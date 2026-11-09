@@ -13,6 +13,7 @@ from .. import models
 from ..modules.siem.services import apply_dynamic_mapping
 from ..core.logging_config import get_logger
 from ..services.collector_factory import CollectorFactory
+from ..core.security import DecryptionError
 import json
 
 from .batch_tasks import record_job_log
@@ -74,16 +75,22 @@ def sync_siem_logs(config_id: int, is_manual: bool = False):
         
         try:
             # 2. 맵핑 로드
-            mapping = config.field_mapping or {
-                "rule_title": "AppDisplayName",
-                "summary": "LocationDetails.state",
-                "related_employee_id": "UserPrincipalName"
-            }
+            # 필드 매핑은 SIEM·쿼리마다 다르므로 기본값을 두지 않고 설정 화면에서 지정해야 한다
+            mapping = config.field_mapping
+            if not mapping:
+                error_msg = f"[{execution_type} 실행] 실패: SIEM {config.name}의 필드 매핑이 설정되지 않았습니다. SIEM 설정 화면에서 매핑을 지정하세요."
+                logger.warning(error_msg)
+                history_record.status = "FAILED"
+                history_record.error_message = error_msg
+                db.add(history_record)
+                db.commit()
+                record_job_log(db, job_id, job_name, "FAILED", execution_type, 0, error_msg)
+                return {"status": "error", "message": error_msg}
             
             # 3. Collector 초기화 (Factory 활용)
             try:
                 collector = CollectorFactory.get_collector(config)
-            except (ValueError, NotImplementedError) as e:
+            except (ValueError, NotImplementedError, DecryptionError) as e:
                 error_msg = f"[{execution_type} 실행] 실패: SIEM {config.name} 콜렉터 초기화 실패 - {str(e)}"
                 logger.warning(error_msg)
                 history_record.status = "FAILED"

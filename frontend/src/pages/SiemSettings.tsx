@@ -29,7 +29,7 @@ const SiemSettings: React.FC = () => {
     const [formData, setFormData] = useState<SiemConfiguration>({
         siem_type: 'Sentinel',
         name: '',
-        host_url: 'https://management.azure.com',
+        host_url: '',
         tenant_id: '',
         client_id: '',
         client_secret: '',
@@ -218,7 +218,7 @@ const SiemSettings: React.FC = () => {
             setFormData({
                 siem_type: 'Sentinel',
                 name: '',
-                host_url: 'https://management.azure.com',
+                host_url: '',
                 tenant_id: '',
                 client_id: '',
                 client_secret: '',

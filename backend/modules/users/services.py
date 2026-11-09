@@ -2,7 +2,8 @@ import secrets
 import string
 from sqlalchemy.orm import Session
 from ... import models
-from ..auth.entra_service import entra_service
+from ..auth import entra_service
+from ..integrations.services import get_entra_config
 from ...core.dependencies import get_password_hash
 from ...core.logging_config import get_logger
 
@@ -20,7 +21,8 @@ def sync_users_from_entra(db: Session):
     Microsoft Entra ID 사용자를 가져와 로컬 DB와 동기화합니다.
     """
     logger.info("Starting user synchronization from Entra ID...")
-    entra_users = entra_service.get_all_users()
+    # 설정이 없거나 Graph 호출이 실패하면 ValidationException / ExternalServiceException 발생
+    entra_users = entra_service.get_all_users(get_entra_config(db))
     
     if not entra_users:
         logger.warning("No users found in Entra ID to sync.")

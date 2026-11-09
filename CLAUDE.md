@@ -32,19 +32,20 @@ python backend/scripts/generate_openapi.py && cd frontend && npm run generate-ty
 ## 구조
 - `backend/main.py` — 앱 생성, 미들웨어, 라우터 등록, lifespan(초기 시딩·스케줄러)
 - `backend/models.py`, `backend/schemas.py` — 공용 ORM 모델 / Pydantic 스키마
-- `backend/modules/<도메인>/router.py` — API (auth, users, cases, submissions, reviews, siem, system, audit, reports)
+- `backend/modules/<도메인>/router.py` — API (auth, users, cases, submissions, reviews, siem, system, audit, reports, integrations)
 - `backend/core/` — config, database, dependencies(인증), permissions(RBAC), security(Fernet), scheduler, mail
 - 메일은 `backend/core/mail/services.py`의 `send_template_mail` 하나로 발송 (템플릿 `backend/templates/email/`, SMTP/Outlook은 `MAIL_SENDER_TYPE`)
 - `backend/services/` — SIEM 수집기 (`BaseCollector` → `SentinelCollector`, `collector_factory`)
 - `backend/tasks/` — 배치/메일/SIEM 동기화 작업
 - `frontend/src/pages/` 화면, `services/` API 클라이언트, `components/`, `locales/{ko,en}/translation.json`
-- `docs/` — 아키텍처, 소명 프로세스, ERD, API 가이드 (도메인 규칙이 필요하면 먼저 읽을 것)
+- `docs/` — 아키텍처, 소명 프로세스, ERD, API 가이드, 선택 연동 가이드(`INTEGRATION_GUIDE.md`) (도메인 규칙이 필요하면 먼저 읽을 것)
 
 ## 도메인 핵심 규칙 (깨뜨리지 말 것)
 - 케이스 상태: `UNCLASSIFIED → REQUEST → SUBMIT → APPROVE | REJECT(A 재소명 / B 교육·서약 / C 감사이관) → CLOSE`
 - 일반 사용자는 **본인 케이스만**, 그리고 `UNCLASSIFIED`/`CLOSE` 상태는 API·UI 모두에서 볼 수 없다
 - 관리자 역할: `SECURITY_ADMIN`, `SYSTEM_ADMIN`, `AUDIT_TEAM`. 심의 중에는 Case Lock 사용
 - 주요 행위는 `SystemAuditLog`에 기록한다
+- Entra ID·SIEM은 **선택 연동**: 설치 후 관리자 화면에서 설정하고 DB에 저장(`integration_setting`, `siem_configuration`, 시크릿 Fernet 암호화). `.env`·`VITE_*`·코드에 테넌트/클라이언트 ID·시크릿을 두지 말 것. 연동 미설정 시 관련 기능은 꺼진 상태로 동작해야 함 (`backend/modules/integrations/services.py`의 `get_entra_config`로 판단)
 - UI 문자열 추가 시 `ko`/`en` 번역 파일 **둘 다** 갱신
 
 ## 코딩 규칙
@@ -74,10 +75,11 @@ python backend/scripts/generate_openapi.py && cd frontend && npm run generate-ty
 - 완료(2차): `backup_backend/`·`plan/` 삭제, git 추적 DB·pyc 제거, 미사용 DB는 `_archive/db/`로 이동, 일회성 스크립트 `scripts/legacy/`로 이동, `database.py`가 `DATABASE_URL`을 읽도록 수정(기존엔 `SICS_DATABASE_URL`만 읽음), Alembic 도입(0001 baseline, 0002 레거시 인덱스 정렬) 및 운영 DB 적용
 - 보류: 관리자 기본 비밀번호 변경 강제(사용자 요청으로 제외)
 
-## 현재 기준선 (2026-11-06 확인)
-- pytest: 41개 전체 통과 (Phase 1 보안 회귀 + Phase 2 케이스 워크플로우: 상태 전이, 사용자 격리, Case Lock, 감사로그, 메일 작업 호출·링크 주소, 메일 프로바이더 통합)
+## 현재 기준선 (2026-11-09 확인)
+- pytest: 61개 전체 통과 (Phase 1 보안 회귀 + Phase 2 케이스 워크플로우: 상태 전이, 사용자 격리, Case Lock, 감사로그, 메일 작업 호출·링크 주소, 메일 프로바이더 통합 + 선택 연동: Entra 설정 저장·마스킹·검증, ID 토큰 검증, 메뉴 권한 시딩, SIEM 매핑 필수)
 - 테스트는 autouse 픽스처에서 메일 발송을 끄고 메일 작업의 DB를 테스트 DB로 교체함 (운영 DB 접근 방지)
 - 케이스 상태 전이 규칙은 `backend/modules/cases/services.py`에 집중. 새 상태 변경 API도 반드시 이 함수들을 거칠 것
+- Alembic head: `0003` (integration_setting)
 - frontend build: 성공 (번들 1.1MB, 코드 분할 경고)
 - frontend lint: 오류 0 / 경고 7 (`react-hooks/exhaustive-deps` 6건 등, 동작 영향 검토 후 정리 예정). 새 코드에 `any` 금지 — API 응답 타입은 `src/types/index.ts`, catch 절은 `unknown` + `src/utils/error.ts` 헬퍼 사용
 - Pydantic 설정은 `model_config = ConfigDict(...)` / `SettingsConfigDict(...)` 사용 (`class Config` 금지). pytest 경고는 외부 라이브러리(passlib crypt, TestClient httpx) 2건만 남음

@@ -1,79 +1,132 @@
 # Fleit InsiderGuard - SICS (Security Incident Clarification System)
 
-**내부자 위협 탐지 및 소명 관리 시스템 (v2.1.0)**
+**내부자 보안 인시던트 소명·심의 관리 시스템 (v2.1.0)**
 
-Fleit InsiderGuard는 SIEM(Security Information and Event Management)에서 탐지된 내부 보안 인시던트에 대해 관련 임직원에게 사유를 묻고, 보안 부서에서 소명 자료를 통합 검토할 수 있도록 심의 프로세스를 지원하는 엔터프라이즈 통합 관리 시스템입니다.
-
----
-
-## 📋 핵심 주요 기능 (v2.1.0 기준)
-
-- 🔍 **SIEM 지능형 연동**: Sentinel, Splunk, ELK 등 다양한 이기종 SIEM 경고를 동적으로 수집하고 매핑
-- ⚖️ **반려(Rejection) 3대 워크플로우**: 단순 반려를 넘어 **재소명(유형 A)**, **보안교육/준수서약(유형 B)**, **징계/감사이관(유형 C)** 으로 체계화된 후속 조치 지원
-- 🖨️ **감사 이관 보고서 원클릭 인쇄**: 중대 위반 의심 건 이관 시 사건 개요, 탐지 로그, 소명 내역, 심의 의견이 완벽히 정리된 표준 공문서 출력/PDF 저장 지원
-- 🔐 **역할 기반 강력한 데이터 격리 (RBAC)**: 일반 사용자는 미검토(`UNCLASSIFIED`) 및 종결(`CLOSE`) 건이 API와 UI 모두에서 원천 차단되며, 전사 트렌드 통계 위젯도 격리
-- 🧭 **스마트 네비게이션 & UI/UX 최적화**: 대시보드 행 클릭 시 역할별 다이렉트 화면 이동(사용자는 `/cases/{id}`, 관리자는 `/reviews?caseId={id}`), 상단 '대시보드로 돌아가기' 이전 문맥 보존
-- 🎛️ **다중 상태(OR) 필터링 & 일괄 초기화**: 복수 상태 뱃지 동시 선택(예: `[요청]` + `[반려]`) 및 1초 초기화 버튼(`RotateCcw`)
-- 🌐 **완벽한 다국어(i18n) 시스템**: 한국어/영어 전 화면 지원, 테이블 헤더 너비 최적화 및 보안 관제 표준 용어(`Medium`) 준수
-- ⏰ **동적 백그라운드 스케줄링**: `APScheduler`를 DB와 연동하여 웹 UI에서 별도 서버 재시작 없이 자유롭게 **로그 수집/보고서/알림 크론(Cron) 주기** 조작
-- 📧 **Enterprise 이메일 통합**: Microsoft Graph API를 이용한 Outlook 계정 연동 및 자동화 알림 템플릿 최적화
-- 📊 **실시간 통계 및 실감형 시드 데이터**: 200건의 SIEM 케이스, 20일 통계, 5주 보고서 및 데모 사용자(`demo@fleitlab.com`) 즉시 지원
+SIEM에서 탐지된 내부자 보안 인시던트에 대해 관련 임직원에게 소명을 받고, 보안팀이 심의·조치하는 과정을 관리합니다.
+외부 연동 없이 설치 후 바로 사용할 수 있으며, Microsoft Entra ID와 SIEM 연동은 조직 상황에 맞춰 **설치 후 관리자 화면에서** 설정합니다.
 
 ---
 
-## 🏗️ 시스템 아키텍처
+## 📋 주요 기능
 
-Fleit InsiderGuard는 최신 아키텍처 트렌드에 따라 외부 의존성(Redis/Celery 등)을 과감히 제거하고 **웹/서버 In-Process 비동기 태스크** 기반으로 극도의 경량화 생태계를 달성했습니다.
-
-▶️ **상세 아키텍처 및 기술 스택 안내는 [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md)를 참조하십시오.**
-
----
-
-## 🚀 설치 및 실행 가이드
-
-Fleit InsiderGuard v2.1.0은 **Zero-Config-Seed 환경**을 제공합니다. 애플리케이션 가동 시 초기 어드민 계정, 초기 동적 스케줄 탭, 사이드바 RBAC 권한이 자동으로 생성(Seeding)되므로 별도의 복잡한 스크립트 실행이 필요 없습니다.
-
-▶️ **로컬 개발서버 및 엔터프라이즈 환경 구축 방법은 [`docs/INSTALL.md`](docs/INSTALL.md) 및 [`docs/PRODUCTION.md`](docs/PRODUCTION.md)를 확인하십시오.**
+- ⚖️ **소명 워크플로우**: `미확인 → 요청 → 제출 → 승인 | 반려 → 종결`. 반려는 **재소명(A)**, **보안교육·서약(B)**, **감사 이관(C)** 3가지 후속 조치로 구분
+- 🔐 **역할 기반 접근 제어**: 일반 사용자는 본인 케이스만 볼 수 있고 `미확인`·`종결` 상태는 API·UI 모두에서 차단. 역할별 메뉴 권한은 화면에서 조정
+- 🔒 **심의 잠금(Case Lock)·감사로그**: 관리자 간 동시 심의 충돌을 막고, 주요 행위를 시스템 감사로그에 기록
+- 🖨️ **감사 이관 보고서 인쇄**: 사건 개요, 탐지 로그, 소명 내역, 심의 의견을 정리한 문서 출력·PDF 저장
+- ⏰ **백그라운드 작업 스케줄링**: 기한 알림, 일일 통계, 주간 보고서, SIEM 수집 주기를 화면에서 변경 (재시작 불필요)
+- 📧 **메일 알림**: SMTP 기본, Microsoft Graph(Outlook) 발송은 선택
+- 🔍 **SIEM 연동 (선택)**: Microsoft Sentinel 수집·필드 매핑으로 케이스 자동 생성 (ELK·Splunk 수집기는 구현 예정)
+- 🪪 **Entra ID 연동 (선택)**: SSO 로그인(ID 토큰 서명·대상·테넌트 검증), 사용자 동기화
+- 🌐 **다국어**: 한국어 / 영어
 
 ---
 
-## 🚦 보안 프로세스 흐름 (Clarification Process)
+## 🧱 기술 스택
 
-임직원의 소명을 처리하는 전체 라이프사이클(인시던트 탐지 -> 초기검토 -> 소명요청 -> 심의 및 반려 3대 워크플로우 -> 최종종결)에 대한 상세 시스템 통제 규정은 개별 문서로 분리 관리합니다.
+| 구분 | 내용 |
+|---|---|
+| Backend | Python 3.12, FastAPI, SQLAlchemy, Pydantic v2, Alembic, APScheduler, python-jose(JWT), msal |
+| Frontend | React 18, TypeScript, Vite, TailwindCSS, TanStack Query, i18next, MSAL Browser |
+| DB | SQLite (기본), PostgreSQL 이관 예정 |
 
-▶️ **소명 처리 워크플로우 및 자동 알림 정책은 [`docs/CLARIFICATION_PROCESS.md`](docs/CLARIFICATION_PROCESS.md)를 참조하십시오.**
-
----
-
-## 🔌 API 가이드 및 데이터베이스 명세
-
-- 프론트엔드와 백엔드 간의 통신 규약과 TypeScript 자동화 설계 방침은 ▶️ **[`docs/API_GUIDE.md`](docs/API_GUIDE.md)**
-- SQLite 및 PostgreSQL 이관에 대비한 데이터베이스 스키마 및 외래키 참조 관계는 ▶️ **[`docs/DB_ERD.md`](docs/DB_ERD.md)**
+Redis·Celery 같은 외부 큐 없이 백엔드 프로세스 안에서 스케줄러가 동작합니다. 상세 구조는 [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md)를 참고하세요.
 
 ---
 
-## 📦 초기 계정 안내
+## 🚀 빠른 시작
 
-시스템 부트스트랩 및 시딩 시 다음 계정들을 기본 제공합니다:
+명령은 모두 프로젝트 루트에서 실행합니다. 자세한 설치 절차(인증서 생성, 운영 배포)는 [`docs/INSTALL.md`](docs/INSTALL.md)와 [`docs/PRODUCTION.md`](docs/PRODUCTION.md)를 참고하세요.
 
-1. **최고 시스템 관리자 계정**:
-   - **ID (Email)**: `system@fleitlab.com`
-   - **Password**: `password123`
-   - *권한*: 전사 케이스 심의, 감사 보고서 출력, 시스템 설정, RBAC 및 스케줄링 관리
-2. **일반 임직원 데모 계정**:
-   - **ID (Email)**: `demo@fleitlab.com`
-   - **Password**: `password123`
-   - *권한*: 본인에게 배정된 4가지 상태(`요청`, `제출`, `승인`, `반려`) 케이스 확인 및 소명서 작성/제출
+```bash
+# 1. 환경 변수 준비 (SECRET_KEY, ENCRYPTION_KEY는 반드시 새로 생성)
+cp .env.example .env
+cp frontend/.env.example frontend/.env
 
-▶️ **기존 구 버전 사용자의 마이그레이션 절차는 [`docs/UPGRADE.md`](docs/UPGRADE.md)를 따라 순차적으로 진행해 주세요.**
+# 2. 백엔드
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r backend/requirements-dev.txt
+alembic upgrade head
+uvicorn backend.main:app --reload --host 0.0.0.0 --ssl-keyfile key.pem --ssl-certfile cert.pem
+
+# 3. 프론트엔드 (다른 터미널)
+cd frontend && npm install && npm run dev
+```
+
+- 백엔드: `https://localhost:8000` (API 문서 `/docs`), 프론트엔드: `https://localhost:5173`
+- 자체 서명 인증서를 쓰는 경우 브라우저에서 `https://localhost:8000`을 먼저 열어 인증서를 허용해야 로그인이 됩니다
+- 첫 실행 시 초기 관리자 계정, 기본 작업 스케줄, 메뉴 권한이 자동 생성됩니다
 
 ---
 
-## ☁️ 시스템 연계 (Azure / Entra ID)
+## 👤 초기 계정
 
-메일 발송 및 Single Sign-On (SSO)을 위해 Microsoft Graph API와 Entra ID 구성이 필요한 조직의 경우 하단의 설정 가이드라인을 따르십시오.
+| 계정 | 생성 시점 | 비고 |
+|---|---|---|
+| 시스템 관리자 | 서버 첫 실행 시 (사용자가 0명일 때) | `.env`의 `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD`. **운영 환경에서는 반드시 변경** |
+| 데모 사용자 `demo@fleitlab.com` | 샘플 데이터 생성 시 | 시스템 관리자가 `POST /system/seed` 호출 시 샘플 케이스·통계와 함께 생성 (개발·시연용) |
 
-▶️ **Azure 포털 권한 등록 및 Microsoft 플랫폼 연계 방안은 [`docs/azure_setup_guide.md`](docs/azure_setup_guide.md)에 기술되어 있습니다.**
+---
+
+## ☁️ 설치 후 선택 연동
+
+설치 직후에는 자체 계정 로그인과 SMTP 메일만 동작하며 외부 연동은 모두 꺼져 있습니다.
+연동 정보(테넌트·클라이언트 ID, 시크릿, 워크스페이스 ID)는 `.env`나 프론트엔드 빌드 변수에 넣지 않고, 화면에서 입력하면 DB에 암호화되어 저장됩니다. 저장 즉시 반영되며 재시작이나 재빌드가 필요 없습니다.
+
+| 연동 | 메뉴 (권한) | 설정하면 켜지는 기능 |
+|---|---|---|
+| Microsoft Entra ID | `외부 연동 설정` (시스템관리자) | SSO 로그인, 사용자 동기화, Outlook 메일 발송 |
+| Microsoft Sentinel | `SIEM 연동` (보안관리자·시스템관리자) | 주기적 인시던트 수집 → 케이스 자동 생성 |
+
+▶️ Azure 앱 등록·권한 설정과 화면별 절차: [`docs/INTEGRATION_GUIDE.md`](docs/INTEGRATION_GUIDE.md)
+
+---
+
+## 🧪 테스트·빌드
+
+```bash
+python -m pytest backend/test_main.py -q   # 백엔드 테스트
+cd frontend && npm run build               # 타입 검사 + 빌드
+cd frontend && npm run lint
+
+# DB 스키마 변경 시
+alembic revision --autogenerate -m "변경 내용"   # 생성된 파일은 반드시 검토
+alembic check
+
+# API 변경 후 프론트 타입 동기화
+python backend/scripts/generate_openapi.py && cd frontend && npm run generate-types
+```
+
+---
+
+## 📚 문서
+
+| 문서 | 내용 |
+|---|---|
+| [`docs/INSTALL.md`](docs/INSTALL.md) | 설치·실행·트러블슈팅 |
+| [`docs/PRODUCTION.md`](docs/PRODUCTION.md) | 운영 배포 (Nginx) |
+| [`docs/UPGRADE.md`](docs/UPGRADE.md) | 기존 버전 업그레이드 (Entra 설정 이전 포함) |
+| [`docs/INTEGRATION_GUIDE.md`](docs/INTEGRATION_GUIDE.md) | Entra ID / Sentinel 선택 연동 |
+| [`docs/CLARIFICATION_PROCESS.md`](docs/CLARIFICATION_PROCESS.md) | 소명 처리 워크플로우·알림 정책 |
+| [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md) | 아키텍처·보안 설계 |
+| [`docs/API_GUIDE.md`](docs/API_GUIDE.md) | API 명세 |
+| [`docs/DB_ERD.md`](docs/DB_ERD.md) | DB 스키마·관계 |
+
+---
+
+## 📁 프로젝트 구조
+
+```text
+backend/
+  main.py                 앱 생성, 미들웨어, 라우터 등록, 초기 시딩·스케줄러
+  core/                   설정, DB, 인증·권한, 암호화, 스케줄러, 메일
+  modules/<도메인>/        API (auth, users, cases, submissions, reviews, siem, system, audit, reports, integrations)
+  services/               SIEM 수집기 (BaseCollector → SentinelCollector)
+  tasks/                  배치·메일·SIEM 동기화 작업
+  migrations/             Alembic 마이그레이션
+frontend/src/
+  pages/ components/ services/ locales/{ko,en}/
+docs/                     설계·운영 문서
+```
 
 ---
 

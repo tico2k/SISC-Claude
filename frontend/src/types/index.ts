@@ -37,13 +37,40 @@ export interface AuthResponse {
 }
 
 export interface EntraLoginRequest {
-    access_token: string;
+    id_token: string;
 }
 
 export interface AuthConfig {
     allow_local: boolean;
     allow_entra: boolean;
     default_method: string;
+    // Entra 연동이 활성화된 경우에만 값이 있음
+    entra_client_id?: string | null;
+    entra_tenant_id?: string | null;
+}
+
+// 외부 연동 설정 (Entra ID)
+export interface EntraIntegration {
+    is_enabled: boolean;
+    tenant_id?: string | null;
+    client_id?: string | null;
+    client_secret_set: boolean;
+    mail_sender?: string | null;
+    updated_at?: string | null;
+}
+
+export interface EntraIntegrationUpdate {
+    is_enabled: boolean;
+    tenant_id: string;
+    client_id: string;
+    // 미입력(undefined): 기존 값 유지 / '': 삭제
+    client_secret?: string;
+    mail_sender: string;
+}
+
+export interface IntegrationTestResult {
+    status: 'success' | 'error';
+    message: string;
 }
 
 // Case Types

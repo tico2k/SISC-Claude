@@ -209,7 +209,7 @@ class SiemConfiguration(Base):
     siem_id = Column(Integer, primary_key=True, index=True)
     siem_type = Column(Enum(SiemType), nullable=False)
     name = Column(String(100), nullable=False)
-    host_url = Column(String(255), nullable=False) # e.g., https://management.azure.com
+    host_url = Column(String(255), nullable=False) # SIEM 관리 API 주소 (SIEM 종류별)
     tenant_id = Column(String(100)) # For Sentinel
     client_id = Column(String(100)) # For Sentinel
     client_secret = Column(String(255)) # For Sentinel (Encrypted ideally)
@@ -222,6 +222,19 @@ class SiemConfiguration(Base):
     is_active = Column(Boolean, default=True)
     cron_expression = Column(String(50), nullable=True) # Schedule expression
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+class IntegrationSetting(Base):
+    """설치 후 관리자가 설정하는 외부 연동 정보 (provider별 1행, 예: ENTRA)"""
+    __tablename__ = "integration_setting"
+
+    provider = Column(String(50), primary_key=True)
+    is_enabled = Column(Boolean, default=False, nullable=False)
+    tenant_id = Column(String(100))
+    client_id = Column(String(100))
+    client_secret = Column(String(500))  # Fernet 암호문
+    mail_sender = Column(String(150))  # Outlook(Graph) 메일 발송용 공용 사서함
+    updated_by = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
 class SiemSyncHistory(Base):

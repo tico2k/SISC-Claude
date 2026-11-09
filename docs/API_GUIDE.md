@@ -25,8 +25,17 @@ Fleit InsiderGuard SICS의 주요 API 엔드포인트와 사용법을 설명합�
 
 - **Endpoint**: `POST /login/entra`
 - **Content-Type**: `application/json`
-- **Body**: `{"access_token": "<Entra_Access_Token>"}`
+- **Body**: `{"id_token": "<Entra_ID_Token>"}` (MSAL 로그인 결과의 ID 토큰)
 - **Response**: SICS 자체 JWT Token
+- **조건**: `외부 연동 설정`에서 Entra 연동이 활성화된 경우에만 허용 (비활성 시 401)
+- **검증**: 서명(테넌트 JWKS), `aud`=등록된 클라이언트 ID, `iss`/`tid`=등록된 테넌트, 만료. 등록되지 않은 사용자는 401
+- **Security**: 분당 10회 속도 제한
+
+### 1.2.1 인증 설정 조회
+
+- **Endpoint**: `GET /config` (인증 불필요)
+- **Response**: `{"allow_local": true, "allow_entra": false, "default_method": "LOCAL", "entra_client_id": null, "entra_tenant_id": null}`
+  - Entra 연동이 활성화된 경우에만 `allow_entra=true`이며 클라이언트·테넌트 ID(공개 값)를 함께 반환 → 프론트엔드가 실행 중에 MSAL 초기화
 
 ### 1.3 사용자 등록 (Register)
 
@@ -211,6 +220,17 @@ Fleit InsiderGuard SICS의 주요 API 엔드포인트와 사용법을 설명합�
 - **일괄 권한 수정**: `POST /system/permissions/bulk-update`
   - **Body**: `[{"permission_id": 1, "is_visible": true}, ...]`
 - **내 권한 조회**: `GET /system/permissions/my` (로그인한 사용자의 허용된 메뉴 목록 반환)
+
+### 4.7 외부 연동 설정 (Entra ID)
+
+- **권한**: `SYSTEM_ADMIN` 전용
+- **조회**: `GET /integrations/entra` → `{"is_enabled", "tenant_id", "client_id", "client_secret_set", "mail_sender", "updated_at"}` (시크릿 값은 반환하지 않음)
+- **저장**: `PUT /integrations/entra`
+  - **Body**: `{"is_enabled": true, "tenant_id": "<GUID>", "client_id": "<GUID>", "client_secret": "...", "mail_sender": "security@company.com"}`
+  - `client_secret`: 생략 또는 `"********"`이면 기존 값 유지, `""`이면 삭제
+  - 활성화 시 테넌트·클라이언트 ID 필수, ID는 GUID 형식만 허용 (위반 시 422). 저장 즉시 반영, 감사로그 기록
+- **연결 테스트**: `POST /integrations/entra/test` → `{"status": "success|error", "message": "..."}` (저장된 설정으로 앱 토큰 발급 시도)
+- **사용자 동기화**: `POST /users/sync-entra` — 연동·시크릿 미설정 시 422, Graph 호출 실패 시 503
 
 ---
 

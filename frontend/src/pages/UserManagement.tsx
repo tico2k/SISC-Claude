@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { userService } from '../services/user.service';
+import { authService } from '../services/auth.service';
 import { User, UserRegisterRequest, UserUploadStats } from '../types';
 import { Users, Plus, Edit2, Trash2, Search, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -35,9 +36,14 @@ const UserManagement: React.FC = () => {
     const [uploadResult, setUploadResult] = useState<UserUploadStats | null>(null);
 
     const [syncing, setSyncing] = useState(false);
+    // Entra 연동이 설정된 경우에만 동기화 버튼 표시
+    const [entraEnabled, setEntraEnabled] = useState(false);
 
     useEffect(() => {
         fetchUsers();
+        authService.getAuthConfig()
+            .then((cfg) => setEntraEnabled(cfg.allow_entra))
+            .catch(() => setEntraEnabled(false));
     }, []);
 
     const fetchUsers = async () => {
@@ -208,6 +214,7 @@ const UserManagement: React.FC = () => {
                 <div className="flex space-x-2">
                     {currentUser?.role === '시스템관리자' && (
                         <>
+                            {entraEnabled && (
                             <button
                                 onClick={handleSyncEntra}
                                 disabled={syncing}
@@ -216,6 +223,7 @@ const UserManagement: React.FC = () => {
                                 <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : ''}`} />
                                 {t('system.user.syncEntra')}
                             </button>
+                            )}
                             <button
                                 onClick={() => setIsBulkModalOpen(true)}
                                 className="flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
